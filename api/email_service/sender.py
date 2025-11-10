@@ -4,7 +4,7 @@ from email.mime.multipart import MIMEMultipart
 import logging
 import os
 from jinja2 import Environment, FileSystemLoader
-from datetime import datetime
+from datetime import datetime, timezone
 from config import SMTP_CONFIG
 
 # Настройка логирования
@@ -33,7 +33,7 @@ class EmailSender:
         Returns:
             bool: True если письмо отправлено успешно, False в случае ошибки
         """
-        start_ts = datetime.utcnow()
+        start_ts = datetime.now(timezone.utc)
         logger.info(f"[EmailSender] Password reset email start: to={to_email} at {start_ts.isoformat()}Z")
         try:
             # Создаем сообщение
@@ -70,7 +70,7 @@ class EmailSender:
                 timeout=10,
             )
 
-            duration = (datetime.utcnow() - start_ts).total_seconds()
+            duration = (datetime.now(timezone.utc) - start_ts).total_seconds()
             if duration > 10:
                 logger.warning(f"[EmailSender] Password reset email slow ({duration:.3f}s) to {to_email}")
             else:
@@ -78,7 +78,7 @@ class EmailSender:
             return True
 
         except Exception as e:
-            duration = (datetime.utcnow() - start_ts).total_seconds()
+            duration = (datetime.now(timezone.utc) - start_ts).total_seconds()
             logger.error(f"[EmailSender] Failed to send password reset email to {to_email} after {duration:.3f}s: {str(e)}")
             return False
 
@@ -94,7 +94,7 @@ class EmailSender:
         Returns:
             bool: True если письмо отправлено успешно, False в случае ошибки
         """
-        start_ts = datetime.utcnow()
+        start_ts = datetime.now(timezone.utc)
         logger.info(f"[EmailSender] Verification email start: to={to_email} at {start_ts.isoformat()}Z")
         try:
             # Создаем сообщение
@@ -131,7 +131,7 @@ class EmailSender:
                 timeout=10,
             )
 
-            duration = (datetime.utcnow() - start_ts).total_seconds()
+            duration = (datetime.now(timezone.utc) - start_ts).total_seconds()
             if duration > 10:
                 logger.warning(f"[EmailSender] Verification email slow ({duration:.3f}s) to {to_email}")
             else:
@@ -139,7 +139,7 @@ class EmailSender:
             return True
 
         except Exception as e:
-            duration = (datetime.utcnow() - start_ts).total_seconds()
+            duration = (datetime.now(timezone.utc) - start_ts).total_seconds()
             logger.error(f"[EmailSender] Failed to send verification email to {to_email} after {duration:.3f}s: {str(e)}")
             return False
 

@@ -1100,19 +1100,19 @@ async def confirm_password_reset_transaction(pool, token: str, new_password_hash
                     WHERE token = %s AND expires_at > %s AND used_at IS NULL
                     FOR UPDATE
                     """,
-                    (token, datetime.utcnow()),
+                    (token, datetime.now(timezone.utc)),
                 )
                 token_record = await cur.fetchone()
                 if not token_record:
                     await cur.execute("ROLLBACK")
                     return False
                 user_id, expires_at = token_record
-                if expires_at < datetime.utcnow():
+                if expires_at < datetime.now(timezone.utc):
                     await cur.execute("ROLLBACK")
                     return False
                 await cur.execute(
                     "UPDATE users SET password_hash = %s, updated_at = %s WHERE id = %s",
-                    (new_password_hash, datetime.utcnow(), user_id),
+                    (new_password_hash, datetime.now(timezone.utc), user_id),
                 )
                 await cur.execute("DELETE FROM password_reset_tokens WHERE token = %s", (token,))
                 if cur.rowcount == 0:

@@ -72,7 +72,7 @@ async def register_user(request: Request, user: models.UserCreate, background_ta
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create user")
 
     verification_code = "".join(random.choices("0123456789", k=6))
-    expires_at = datetime.utcnow() + timedelta(hours=24)
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
     ok = await database.save_verification_code(pool, new_user["id"], verification_code, expires_at)
     if not ok:
         await database.delete_user(pool, new_user["id"])
