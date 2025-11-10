@@ -6,6 +6,7 @@ from urllib.parse import urlparse
 
 import bcrypt
 import jwt
+from jwt.exceptions import PyJWTError
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
@@ -61,7 +62,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
             detail="Token has expired",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    except jwt.JWTError:
+    except PyJWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",
@@ -127,7 +128,7 @@ def format_datetime(dt_obj):
     return dt_obj.isoformat() if dt_obj else None
 
 
-def get_full_image_url(image_filename: str) -> str:
+def get_full_image_url(image_filename: str) -> Optional[str]:
     if not image_filename:
         return None
     if image_filename.startswith(("http://", "https://")):
