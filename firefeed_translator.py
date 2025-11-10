@@ -1,5 +1,4 @@
 import asyncio
-import spacy
 import time
 import re
 import logging
@@ -323,7 +322,7 @@ class FireFeedTranslator:
         try:
             memory = psutil.virtual_memory()
             return memory.percent
-        except:
+        except Exception:
             return 0
 
     def _cleanup_old_models(self):
@@ -573,7 +572,7 @@ class FireFeedTranslator:
                 return 8
             else:
                 return 16
-        except:
+        except Exception:
             return 8  # значение по умолчанию
 
     def _prepare_sentences_for_batch(self, texts, source_lang):
@@ -608,11 +607,9 @@ class FireFeedTranslator:
             if text_length < 20:  # Короткие тексты
                 adapted_beam_size = min(beam_size or 5, 3)  # Меньше beam_size для коротких
                 adapted_repetition_penalty = 1.5  # Меньше penalty для коротких
-                adapted_length_penalty = 0.8  # Меньше length_penalty для коротких
             else:  # Длинные тексты
                 adapted_beam_size = beam_size or 5
                 adapted_repetition_penalty = 2.0
-                adapted_length_penalty = 1.0
 
             # Токенизация через Transformers
             tokenizer.src_lang = source_lang
@@ -648,9 +645,9 @@ class FireFeedTranslator:
                     fallback_translation = tokenizer.batch_decode(fallback_tokens, skip_special_tokens=True)[0]
                     if not self._is_broken_translation(fallback_translation):
                         batch_translations[j] = fallback_translation
-                        logger.info(f"[FALLBACK] Fallback успешен")
+                        logger.info("[FALLBACK] Fallback успешен")
                     else:
-                        logger.warning(f"[FALLBACK] Fallback тоже плохой, оставляем оригинал")
+                        logger.warning("[FALLBACK] Fallback тоже плохой, оставляем оригинал")
 
             translated_batches.extend(batch_translations)
         return translated_batches
@@ -686,7 +683,7 @@ class FireFeedTranslator:
         # Используем мультиязычную модель m2m100
         model, tokenizer = self._get_model("m2m100")
         if model is None or tokenizer is None:
-            logger.error(f"[TRANSLATOR] [BATCH] Модель m2m100 не найдена или повреждена, возврат исходных текстов.")
+            logger.error("[TRANSLATOR] [BATCH] Модель m2m100 не найдена или повреждена, возврат исходных текстов.")
             return texts
 
         # Подготавливаем предложения
@@ -712,7 +709,7 @@ class FireFeedTranslator:
         return cleaned_results
 
     async def translate_async(self, texts, source_lang, target_lang, context_window=2, beam_size=None):
-        logger.debug(f"[TRANSLATOR] [ASYNC] Начало translate_async для задачи")
+        logger.debug("[TRANSLATOR] [ASYNC] Начало translate_async для задачи")
         """Асинхронный метод перевода с использованием пула потоков"""
         loop = asyncio.get_event_loop()
 

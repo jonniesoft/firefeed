@@ -1,6 +1,5 @@
 import pytest
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 from datetime import datetime, timedelta
 from api.database import (
     get_db_pool,
@@ -27,11 +26,6 @@ from api.database import (
     get_user_rss_feed_by_id,
     update_user_rss_feed,
     delete_user_rss_feed,
-    get_user_rss_items_list,
-    get_user_rss_items_list_by_feed,
-    get_rss_item_by_id,
-    get_rss_item_by_id_full,
-    get_all_rss_items_list,
     get_all_categories_list,
     activate_user_and_use_verification_code,
     confirm_password_reset_transaction,

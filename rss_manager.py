@@ -7,7 +7,6 @@ from datetime import datetime, timezone, timedelta
 import feedparser
 import pytz
 import aiohttp
-from urllib.parse import urljoin, urlparse
 from utils.image import ImageProcessor
 from config import IMAGES_ROOT_DIR, get_shared_db_pool, MAX_TOTAL_RSS_ITEMS, MAX_ENTRIES_PER_FEED, MAX_CONCURRENT_FEEDS
 import traceback
@@ -359,7 +358,6 @@ class RSSManager:
         """Вспомогательный метод: Получает количество RSS-элементов из ленты за последние N минут"""
         try:
             pool = await self.get_pool()
-            news_count = 0
             time_threshold = datetime.now(timezone.utc) - timedelta(minutes=minutes)
             async with pool.acquire() as conn:
                 async with conn.cursor() as cur:
@@ -392,7 +390,7 @@ class RSSManager:
 
             detector = FireFeedDuplicateDetector()
             # Генерируем временный ID для проверки (не сохраняем в БД)
-            temp_id = "temp_" + str(hash(f"{title}_{content}_{link}"))
+            "temp_" + str(hash(f"{title}_{content}_{link}"))
 
             is_duplicate, duplicate_info = await detector.is_duplicate_strict(title, content, link, lang)
 
@@ -631,7 +629,7 @@ class RSSManager:
                                 )
                                 image_url_for_processing = image_url_from_preview
                             else:
-                                logger.debug(f"[RSS] [IMG] Изображение в web preview не найдено.")
+                                logger.debug("[RSS] [IMG] Изображение в web preview не найдено.")
                         except Exception as e:
                             logger.error(f"[RSS] [IMG] Ошибка извлечения из web preview: {e}")
 
@@ -650,7 +648,7 @@ class RSSManager:
                                     logger.debug(f"[RSS] [IMG] HEAD-запрос вернул Content-Type: {content_type}")
                                     if content_type.startswith("image/"):
                                         logger.debug(
-                                            f"[RSS] [IMG] Подтвержден тип изображения через HEAD. Скачиваем..."
+                                            "[RSS] [IMG] Подтвержден тип изображения через HEAD. Скачиваем..."
                                         )
                                         # Скачиваем и сохраняем изображение, используя news_id как идентификатор
                                         local_image_path = await ImageProcessor.download_and_save_image(
@@ -675,7 +673,7 @@ class RSSManager:
                         rss_item["image_filename"] = os.path.relpath(local_image_path, IMAGES_ROOT_DIR)
                         logger.info(f"[RSS] [IMG] Изображение сохранено как: {rss_item['image_filename']}")
                     else:
-                        logger.debug(f"[RSS] [IMG] Изображение не будет связано с элементом.")
+                        logger.debug("[RSS] [IMG] Изображение не будет связано с элементом.")
 
                     # - Извлечение видео -
                     video_url = self.extract_video_from_rss_item(entry)
@@ -803,13 +801,13 @@ class RSSManager:
                             all_rss_items.extend(local_rss_items)
                             logger.info(f"[RSS] [FETCH] Получено {len(local_rss_items)} элементов. Всего: {len(all_rss_items)}")
                         else:
-                            logger.debug(f"[RSS] [FETCH] Получено 0 элементов от одной из лент.")
+                            logger.debug("[RSS] [FETCH] Получено 0 элементов от одной из лент.")
 
                         completed_count += 1
                         logger.info(f"[RSS] [PROGRESS] Завершено {completed_count}/{len(tasks)} лент.")
 
                     except asyncio.CancelledError:
-                        logger.warning(f"[RSS] [TASK] Одна из задач была отменена.")
+                        logger.warning("[RSS] [TASK] Одна из задач была отменена.")
                         continue  # Продолжаем обработку других завершенных задач
                     except Exception as task_e:
                         logger.error(f"[RSS] [TASK_ERROR] Ошибка в задаче парсинга одной ленты: {task_e}")
@@ -858,7 +856,7 @@ class RSSManager:
                     original_language = rss_item["lang"]
                     image_filename = rss_item["image_filename"]
                     category_name = rss_item["category"]
-                    source_name = rss_item["source"]
+                    rss_item["source"]
                     source_url = rss_item["link"]
 
                     # 3. Получаем category_id

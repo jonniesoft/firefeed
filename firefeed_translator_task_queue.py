@@ -34,7 +34,7 @@ class FireFeedTranslatorTaskQueue:
                 logger.info(f"[{worker_id}] 📥 Начало обработки задачи: {task_id[:20]}")
 
                 try:
-                    result = await self.translator.prepare_translations(
+                    await self.translator.prepare_translations(
                         **task["data"],
                         callback=task.get("callback"),
                         error_callback=task.get("error_callback"),
@@ -112,7 +112,7 @@ class FireFeedTranslatorTaskQueue:
     def print_stats(self):
         """Вывод статистики"""
         stats = self.get_stats()
-        logger.info(f"[QUEUE] 📊 Статистика:")
+        logger.info("[QUEUE] 📊 Статистика:")
         logger.info(f"  Обработано: {stats['processed']}")
         logger.info(f"  Ошибок: {stats['errors']}")
         logger.info(f"  В очереди: {stats['queued']}")

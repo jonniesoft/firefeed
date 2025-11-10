@@ -1,5 +1,4 @@
 import pytest
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 from bot import (
     PreparedRSSItem,
@@ -151,7 +150,7 @@ class TestBotFunctions:
                 assert result == "en"
 
     async def test_process_rss_item(self):
-        prepared_item = PreparedRSSItem(
+        PreparedRSSItem(
             original_data={"id": "news123", "title": "Test", "category": "Tech"},
             translations={"ru": {"title": "Тест"}},
             image_filename="test.jpg"

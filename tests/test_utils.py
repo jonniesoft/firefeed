@@ -1,4 +1,3 @@
-import pytest
 from utils.text import TextProcessor
 
 
@@ -111,7 +110,7 @@ class TestTextProcessor:
     def test_is_gibberish_mixed_text(self):
         mixed = "Hello asdfghjkl world qwerty"
         # This might be borderline, but with current threshold should be False
-        result = TextProcessor.is_gibberish(mixed)
+        TextProcessor.is_gibberish(mixed)
         # The exact result depends on the ratio calculation
 
     def test_is_gibberish_empty(self):

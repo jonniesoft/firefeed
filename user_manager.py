@@ -216,7 +216,7 @@ class UserManager(DatabaseMixin):
                 if not result:
                     return False
 
-                user_id = result[0]
+                result[0]
 
                 # Проверяем, не привязан ли уже этот Telegram ID
                 await cur.execute(

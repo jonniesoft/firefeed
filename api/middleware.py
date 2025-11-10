@@ -17,7 +17,7 @@ class ApplicationRateLimitMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         # Get client IP
-        client_ip = get_remote_address(request)
+        get_remote_address(request)
 
         # Check application-level limits based on endpoint
         path = request.url.path

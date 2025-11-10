@@ -8,7 +8,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from api.middleware import limiter
 from api import database, models
 from api.deps import create_access_token, verify_password, get_password_hash, ACCESS_TOKEN_EXPIRE_MINUTES
-from api.email_service.sender import send_verification_email
+from api.email_service.sender import send_verification_email, send_password_reset_email
 
 logger = logging.getLogger(__name__)
 

@@ -3,7 +3,7 @@ import spacy
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 import logging
 from utils.text import TextProcessor
 
@@ -19,7 +19,6 @@ class FireFeedEmbeddingsProcessor:
 
     def __new__(cls, model_name: str = "paraphrase-multilingual-MiniLM-L12-v2", device: str = "cpu", max_spacy_cache: int = 3):
         """Синглтон паттерн для кэширования моделей"""
-        cache_key = f"{model_name}_{device}_{max_spacy_cache}"
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False

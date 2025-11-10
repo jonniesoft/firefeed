@@ -1,7 +1,6 @@
 import asyncio
 import signal
 import sys
-import time
 import logging
 from logging_config import setup_logging
 from rss_manager import RSSManager
