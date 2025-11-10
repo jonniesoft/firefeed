@@ -10,7 +10,9 @@ __pycache__
 .Python
 env
 venv
+# Исключаем локальные виртуальные окружения - UV создаст свое окружение в контейнере
 .venv
+__pypackages__/
 pip-log.txt
 pip-delete-this-directory.txt
 .tox
