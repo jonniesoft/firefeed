@@ -103,8 +103,8 @@ async def update_user(pool, user_id: int, update_data: Dict[str, Any]) -> Option
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
             try:
-                set_parts = []
-                params = []
+                set_parts: list[Any] = []
+                params: list[Any] = []
                 for key, value in update_data.items():
                     set_parts.append(f"{key} = %s")
                     params.append(value)
@@ -460,8 +460,8 @@ async def update_user_rss_feed(
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
             try:
-                set_parts = []
-                params = []
+                set_parts: list[Any] = []
+                params: list[Any] = []
                 for key, value in update_data.items():
                     set_parts.append(f"{key} = %s")
                     params.append(value)
@@ -542,7 +542,7 @@ async def get_user_rss_items_list(
                 FROM published_news_data nd
                 WHERE nd.rss_feed_id = ANY(%s) -- Фильтр по пользовательским RSS-лентам
                 """
-                count_params = [user_rss_feed_ids]
+                count_params: list[Any] = [user_rss_feed_ids]
 
                 # Добавляем фильтры для подсчета
                 if original_language:
@@ -554,7 +554,7 @@ async def get_user_rss_items_list(
                 total_count = total_count[0] if total_count else 0
 
                 # 4. Получение самих RSS-элементов с JOIN'ами
-                query_params = []
+                query_params: list[Any] = []
 
                 query = """
                 SELECT
@@ -644,7 +644,7 @@ async def get_user_rss_items_list_by_feed(
                 FROM published_news_data nd
                 WHERE nd.rss_feed_id = %s -- Фильтр по конкретной пользовательской RSS-ленте
                 """
-                count_params = [feed_id]
+                count_params: list[Any] = [feed_id]
 
                 # Добавляем фильтры для подсчета
                 if original_language:
@@ -656,7 +656,7 @@ async def get_user_rss_items_list_by_feed(
                 total_count = total_count[0] if total_count else 0
 
                 # 3. Получение самих RSS-элементов с JOIN'ами
-                query_params = []
+                query_params: list[Any] = []
 
                 query = """
                 SELECT
@@ -824,7 +824,7 @@ async def get_all_rss_items_list(
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
             try:
-                params = []
+                params: list[Any] = []
                 # Базовый SELECT
                 select_parts = [
                     "nd.*",
@@ -951,7 +951,7 @@ async def get_all_rss_items_list(
                 LEFT JOIN news_translations nt_display ON nd.news_id = nt_display.news_id AND nt_display.language = %s
                 WHERE 1=1
                 """
-                count_params = [display_language]
+                count_params: list[Any] = [display_language]
 
                 if original_language:
                     count_query += " AND nd.original_language = %s"
@@ -1022,7 +1022,7 @@ async def get_all_categories_list(
                 data_query = "SELECT id, name FROM categories WHERE id != %s"
                 conditions = []
                 params = [config.USER_DEFINED_RSS_CATEGORY_ID]
-                count_params = [config.USER_DEFINED_RSS_CATEGORY_ID]
+                count_params: list[Any] = [config.USER_DEFINED_RSS_CATEGORY_ID]
 
                 # Добавляем фильтр по source_id, если передан
                 if source_ids:
