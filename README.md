@@ -1,6 +1,6 @@
 # FireFeed - AI-powered RSS aggregator and parser
 
-[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-3.14+-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.116.1-green.svg)](https://fastapi.tiangolo.com/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-12+-blue.svg)](https://www.postgresql.org/)
 [![Docker](https://img.shields.io/badge/Docker-Supported-blue.svg)](https://www.docker.com/)
@@ -65,7 +65,7 @@ FireFeed - это высокопроизводительная система д
 ## Технический стек
 
 ### Backend
-- Python 3.8+ с asyncio
+- Python 3.14+ с asyncio
 - FastAPI для REST API
 - PostgreSQL с pgvector для семантического поиска
 - aiopg для асинхронных запросов к БД
@@ -108,25 +108,30 @@ FireFeed - это высокопроизводительная система д
 
 ### Предварительные требования
 
-- Python 3.8 или выше
+- Python 3.14 или выше
+- UV package manager (установка: `curl -LsSf https://astral.sh/uv/install.sh | sh`)
 - PostgreSQL 12+ с расширением pgvector
 - Токен Telegram Bot API
 
 ### Установка зависимостей
 
 ```bash
-pip install -r requirements.txt
+uv pip install -r requirements.txt
 ```
+
+**Примечание**: После добавления `pyproject.toml` и `uv.lock` используйте `uv sync` вместо `uv pip install`. До тех пор используется `requirements.txt` для установки зависимостей.
 
 ### Базовый запуск
 
 ```bash
-# Создание виртуального окружения
-python -m venv venv
-source venv/bin/activate  # для Windows: venv\Scripts\activate
+# Создание виртуального окружения (UV управляет этим автоматически)
+uv venv
 
+# UV автоматически управляет виртуальным окружением
 # Запуск Telegram бота
-python bot.py
+uv run python bot.py
+# или просто
+uv run bot.py
 ```
 
 ### Запуск через скрипты
@@ -141,6 +146,38 @@ chmod +x ./run_api.sh
 
 # Запуск API
 ./run_api.sh
+```
+
+### Запуск через Docker
+
+Проект поддерживает Docker-контейнеризацию с использованием multi-stage сборки для оптимизации размера образа.
+
+**Требования:**
+- Docker 20.10+ с поддержкой BuildKit
+
+**Сборка образа:**
+
+```bash
+# Включите BuildKit (рекомендуется)
+export DOCKER_BUILDKIT=1
+
+# Соберите образ
+docker build -t firefeed:latest .
+```
+
+**Примечание**: Dockerfile использует BuildKit-специфичные функции (cache mounts). Убедитесь, что BuildKit включен через переменную окружения `DOCKER_BUILDKIT=1` или настройте Docker daemon для использования BuildKit по умолчанию.
+
+**Запуск контейнера:**
+
+```bash
+# Запуск API
+docker run -d -p 8000:8000 --env-file .env firefeed:latest
+
+# Запуск бота (переопределение CMD)
+docker run -d --env-file .env firefeed:latest python bot.py
+
+# Запуск RSS парсера
+docker run -d --env-file .env firefeed:latest python rss_parser.py
 ```
 
 ## Конфигурация
@@ -280,8 +317,37 @@ git clone https://gitverse.ru/yuryweiland/firefeed.git
 cd firefeed
 
 # Установка зависимостей
-pip install -r requirements.txt
+uv pip install -r requirements.txt
 ```
+
+**Примечание**: `pyproject.toml` и `uv.lock` будут созданы в следующей фазе миграции. После их добавления используйте `uv sync` вместо `uv pip install -r requirements.txt`.
+
+### Работа с UV
+
+UV - это современный быстрый менеджер пакетов Python от Astral, который значительно ускоряет установку зависимостей и обеспечивает детерминированные сборки.
+
+**Основные команды UV:**
+
+```bash
+# Установка зависимостей (текущий способ)
+uv pip install -r requirements.txt
+
+# После миграции на pyproject.toml:
+# uv sync                 # Установка зависимостей
+# uv add <package>        # Добавление нового пакета
+# uv lock                 # Обновление lockfile
+
+# Запуск скриптов в виртуальном окружении
+uv run python script.py
+```
+
+**Преимущества UV:**
+
+- **Быстрая установка зависимостей**: особенно важно для ML-библиотек (torch, transformers, sentence-transformers)
+- **Детерминированные сборки**: через `uv.lock` обеспечивается воспроизводимость окружения
+- **Автоматическое управление виртуальными окружениями**: не нужно вручную активировать venv
+
+**Совместимость с pip**: В случаях, когда нужен fallback, можно продолжать использовать pip с `requirements.txt`.
 
 ### Запуск тестов
 
