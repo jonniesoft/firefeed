@@ -1,6 +1,6 @@
 # FireFeed - AI-powered RSS aggregator and parser
 
-[![Python](https://img.shields.io/badge/Python-3.14+-blue.svg)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-3.13+-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.116.1-green.svg)](https://fastapi.tiangolo.com/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-12+-blue.svg)](https://www.postgresql.org/)
 [![Docker](https://img.shields.io/badge/Docker-Supported-blue.svg)](https://www.docker.com/)
@@ -65,7 +65,7 @@ FireFeed - это высокопроизводительная система д
 ## Технический стек
 
 ### Backend
-- Python 3.14+ с asyncio
+- Python 3.13+ с asyncio
 - FastAPI для REST API
 - PostgreSQL с pgvector для семантического поиска
 - aiopg для асинхронных запросов к БД
@@ -108,7 +108,7 @@ FireFeed - это высокопроизводительная система д
 
 ### Предварительные требования
 
-- Python 3.14 или выше
+- Python 3.13 или выше
 - UV package manager (установка: `curl -LsSf https://astral.sh/uv/install.sh | sh`)
 - PostgreSQL 12+ с расширением pgvector
 - Токен Telegram Bot API

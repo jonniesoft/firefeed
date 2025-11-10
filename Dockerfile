@@ -3,7 +3,7 @@
 # Multi-stage build для оптимизации размера образа
 
 # Builder stage - установка зависимостей
-FROM python:3.14-slim AS builder
+FROM python:3.13-slim AS builder
 
 # Копируем UV из официального образа (версия зафиксирована для воспроизводимости)
 COPY --from=ghcr.io/astral-sh/uv:0.5.11 /uv /uvx /bin/
@@ -45,7 +45,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     fi
 
 # Runtime stage - минимальный образ для запуска
-FROM python:3.14-slim
+FROM python:3.13-slim
 
 # Устанавливаем runtime-зависимости для ML-библиотек
 # libgomp1 - для OpenMP (используется torch, scikit-learn)
