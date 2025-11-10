@@ -91,7 +91,7 @@ class ImageProcessor:
 
         except OSError as e:
             logger.warning(
-                f"[WARN] Ошибка файловой системы при сохранении изображения {url} в {full_save_directory}: {e}"
+                f"[WARN] Ошибка файловой системы при сохранении изображения {url}: {e}"
             )
             return None
         except Exception as e:
@@ -141,13 +141,16 @@ class ImageProcessor:
             image_tags = soup.find_all("img")
             for img in image_tags:
                 src = img.get("src") or img.get("data-src")
-                if src and ("image" in src.lower() or "photo" in src.lower()):
-                    # Конвертируем относительные URL в абсолютные
-                    if src.startswith("//"):
-                        return "https:" + src
-                    elif src.startswith("/"):
-                        return urljoin(url, src)
-                    return src
+                if src:
+                    # Преобразуем в строку, если это AttributeValueList
+                    src = str(src) if not isinstance(src, str) else src
+                    if "image" in src.lower() or "photo" in src.lower():
+                        # Конвертируем относительные URL в абсолютные
+                        if src.startswith("//"):
+                            return "https:" + src
+                        elif src.startswith("/"):
+                            return urljoin(url, src)
+                        return src
 
             return None
         except Exception as e:

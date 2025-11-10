@@ -73,6 +73,7 @@ class TestRSSItem:
         )
         assert item.image_url == "http://example.com/image.jpg"
         assert item.category == "Tech"
+        assert item.translations is not None
         assert item.translations["es"].title == "Título de Prueba"
 
 

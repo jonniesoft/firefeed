@@ -1,6 +1,7 @@
 import re
 import html
 import logging
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -9,7 +10,7 @@ class TextProcessor:
     """Класс для обработки и валидации текста"""
 
     @staticmethod
-    def clean(raw_html: str) -> str:
+    def clean(raw_html: Optional[str]) -> str:
         """Удаляет все HTML-теги и преобразует HTML-сущности"""
         if not raw_html:
             return ""
@@ -38,7 +39,7 @@ class TextProcessor:
         return clean_text.strip()
 
     @staticmethod
-    def normalize(text: str) -> str:
+    def normalize(text: Optional[str]) -> str:
         """Нормализует пробелы в тексте"""
         if not text:
             return ""
@@ -74,7 +75,7 @@ class TextProcessor:
         return [s.strip() for s in sentences if s.strip()]
 
     @staticmethod
-    def is_gibberish(text: str, threshold: float = 0.7) -> bool:
+    def is_gibberish(text: Optional[str], threshold: float = 0.7) -> bool:
         """Проверяет, является ли текст бессмысленным набором символов"""
         if not text or len(text) < 10:
             return False

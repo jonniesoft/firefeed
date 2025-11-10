@@ -1,6 +1,6 @@
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 from utils.database import DatabaseMixin, db_operation
 
@@ -62,8 +62,8 @@ class UserManager(DatabaseMixin):
                             "dummy_hash",
                             language,
                             True,
-                            datetime.utcnow(),
-                            datetime.utcnow(),
+                            datetime.now(timezone.utc),
+                            datetime.now(timezone.utc),
                         ),
                     )
 
@@ -193,7 +193,7 @@ class UserManager(DatabaseMixin):
                     INSERT INTO user_telegram_links (user_id, link_code, created_at)
                     VALUES (%s, %s, %s)
                 """,
-                    (user_id, link_code, datetime.utcnow()),
+                    (user_id, link_code, datetime.now(timezone.utc)),
                 )
                 return link_code
 
@@ -209,7 +209,7 @@ class UserManager(DatabaseMixin):
                     WHERE link_code = %s AND linked_at IS NULL
                     AND created_at > %s
                 """,
-                    (link_code, datetime.utcnow() - timedelta(hours=24)),
+                    (link_code, datetime.now(timezone.utc) - timedelta(hours=24)),
                 )
 
                 result = await cur.fetchone()
@@ -232,7 +232,7 @@ class UserManager(DatabaseMixin):
                     SET telegram_id = %s, linked_at = %s
                     WHERE link_code = %s
                 """,
-                    (telegram_id, datetime.utcnow(), link_code),
+                    (telegram_id, datetime.now(timezone.utc), link_code),
                 )
 
                 return True

@@ -5,7 +5,7 @@ import logging
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import config
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List, Set, Tuple
 
 logger = logging.getLogger(__name__)
@@ -43,7 +43,7 @@ async def create_user(pool, email: str, password_hash: str, language: str) -> Op
                 VALUES (%s, %s, %s, %s, %s, %s)
                 RETURNING id, email, language, is_active, created_at, updated_at
                 """
-                now = datetime.utcnow()
+                now = datetime.now(timezone.utc)
                 await cur.execute(query, (email, password_hash, language, False, now, now))
                 result = await cur.fetchone()
                 if result:
@@ -116,7 +116,7 @@ async def update_user(pool, user_id: int, update_data: Dict[str, Any]) -> Option
                 WHERE id = %s
                 RETURNING id, email, password_hash, language, is_active, created_at, updated_at
                 """
-                params.append(datetime.utcnow())  # updated_at
+                params.append(datetime.now(timezone.utc))  # updated_at
                 await cur.execute(query, params)
                 result = await cur.fetchone()
                 if result:
@@ -135,7 +135,7 @@ async def delete_user(pool, user_id: int) -> bool:
             try:
                 # Вместо физического удаления деактивируем
                 query = "UPDATE users SET is_active = FALSE, updated_at = %s WHERE id = %s"
-                await cur.execute(query, (datetime.utcnow(), user_id))
+                await cur.execute(query, (datetime.now(timezone.utc), user_id))
                 # Проверяем, была ли затронута строка
                 if cur.rowcount > 0:
                     return True
@@ -151,7 +151,7 @@ async def activate_user(pool, user_id: int) -> bool:
         async with conn.cursor() as cur:
             try:
                 query = "UPDATE users SET is_active = TRUE, updated_at = %s WHERE id = %s"
-                await cur.execute(query, (datetime.utcnow(), user_id))
+                await cur.execute(query, (datetime.now(timezone.utc), user_id))
                 if cur.rowcount > 0:
                     return True
                 return False
@@ -166,7 +166,7 @@ async def update_user_password(pool, user_id: int, new_hashed_password: str) -> 
         async with conn.cursor() as cur:
             try:
                 query = "UPDATE users SET password_hash = %s, updated_at = %s WHERE id = %s"
-                await cur.execute(query, (new_hashed_password, datetime.utcnow(), user_id))
+                await cur.execute(query, (new_hashed_password, datetime.now(timezone.utc), user_id))
                 return cur.rowcount > 0
             except Exception as e:
                 logger.error(f"[DB] Error updating user password: {e}")
@@ -211,7 +211,7 @@ async def verify_user_email(pool, email: str, verification_code: str) -> Optiona
                   AND uvc.used_at IS NULL
                   AND uvc.expires_at > %s
                 """
-                await cur.execute(query, (email, verification_code, datetime.utcnow()))
+                await cur.execute(query, (email, verification_code, datetime.now(timezone.utc)))
                 result = await cur.fetchone()
                 if result:
                     return result[0]
@@ -271,7 +271,7 @@ async def save_password_reset_token(pool, user_id: int, token: str, expires_at: 
                 INSERT INTO password_reset_tokens (user_id, token, expires_at, created_at)
                 VALUES (%s, %s, %s, %s)
                 """
-                await cur.execute(query, (user_id, token, expires_at, datetime.utcnow()))
+                await cur.execute(query, (user_id, token, expires_at, datetime.now(timezone.utc)))
                 return True
             except Exception as e:
                 logger.info(f"[DB] Error saving password reset token: {e}")
@@ -287,7 +287,7 @@ async def get_password_reset_token(pool, token: str) -> Optional[Dict[str, Any]]
                 SELECT user_id, expires_at FROM password_reset_tokens
                 WHERE token = %s AND expires_at > %s
                 """
-                await cur.execute(query, (token, datetime.utcnow()))
+                await cur.execute(query, (token, datetime.now(timezone.utc)))
                 result = await cur.fetchone()
                 if result:
                     return {"user_id": result[0], "expires_at": result[1]}
@@ -394,7 +394,7 @@ async def create_user_rss_feed(
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
                 RETURNING id, user_id, url, name, category_id, language, is_active, created_at, updated_at
                 """
-                now = datetime.utcnow()
+                now = datetime.now(timezone.utc)
                 await cur.execute(query, (user_id, url, name, category_id, language, True, now, now))
                 result = await cur.fetchone()
                 if result:
@@ -474,7 +474,7 @@ async def update_user_rss_feed(
                 WHERE user_id = %s AND id = %s
                 RETURNING id, user_id, url, name, category_id, language, is_active, created_at, updated_at
                 """
-                params.append(datetime.utcnow())  # updated_at
+                params.append(datetime.now(timezone.utc))  # updated_at
                 await cur.execute(query, params)
                 result = await cur.fetchone()
                 if result:

@@ -1,5 +1,7 @@
 import logging
 import os
+import asyncio
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -17,7 +19,26 @@ from logging_config import setup_logging
 setup_logging()
 logger = logging.getLogger(__name__)
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Управление жизненным циклом приложения"""
+    # Startup
+    asyncio.create_task(check_for_new_rss_items())
+    logger.info("[Startup] RSS items checking task started")
+
+    yield
+
+    # Shutdown
+    try:
+        await database.close_db_pool()
+        logger.info("[Shutdown] Database pool closed")
+    except Exception as e:
+        logger.error(f"[Shutdown] Error closing DB pool: {e}")
+
+
 app = FastAPI(
+    lifespan=lifespan,
     title="FireFeed API",
     description="""
     # FireFeed News Aggregator API
@@ -113,19 +134,4 @@ app.include_router(rss_items_router.router)
 app.include_router(ws_router)
 
 
-@app.on_event("startup")
-async def startup_event():
-    # Start background rss items checking task
-    import asyncio
-
-    asyncio.create_task(check_for_new_rss_items())
-    logger.info("[Startup] RSS items checking task started")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    try:
-        await database.close_db_pool()
-        logger.info("[Shutdown] Database pool closed")
-    except Exception as e:
-        logger.error(f"[Shutdown] Error closing DB pool: {e}")
+# Lifecycle events moved to lifespan context manager above

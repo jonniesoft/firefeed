@@ -1,7 +1,7 @@
 import logging
 import random
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Request, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
 
@@ -79,10 +79,10 @@ async def register_user(request: Request, user: models.UserCreate, background_ta
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create verification code")
 
     async def _send_verification(email: str, code: str, lang: str):
-        start_ts = datetime.utcnow()
+        start_ts = datetime.now(timezone.utc)
         try:
             ok = await send_verification_email(email, code, lang)
-            duration = (datetime.utcnow() - start_ts).total_seconds()
+            duration = (datetime.now(timezone.utc) - start_ts).total_seconds()
             if duration > 10:
                 logger.warning(f"[VerificationEmail] Slow send: {duration:.3f}s for {email}")
             else:
@@ -90,7 +90,7 @@ async def register_user(request: Request, user: models.UserCreate, background_ta
             if not ok:
                 logger.error(f"[VerificationEmail] Failed to send to {email}")
         except Exception as e:
-            duration = (datetime.utcnow() - start_ts).total_seconds()
+            duration = (datetime.now(timezone.utc) - start_ts).total_seconds()
             logger.error(f"[VerificationEmail] Exception after {duration:.3f}s for {email}: {e}")
 
     background_tasks.add_task(_send_verification, user.email, verification_code, user.language)
@@ -248,16 +248,16 @@ async def request_password_reset(request: Request, password_reset_request: model
         return {"message": "If email exists, reset instructions have been sent"}
 
     token = secrets.token_urlsafe(32)
-    expires_at = datetime.utcnow() + timedelta(hours=1)
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
     success = await database.save_password_reset_token(pool, user["id"], token, expires_at)
     if not success:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create reset token")
 
     async def _send_and_cleanup(email: str, token: str, lang: str):
-        start_ts = datetime.utcnow()
+        start_ts = datetime.now(timezone.utc)
         try:
             ok = await send_password_reset_email(email, token, lang)
-            duration = (datetime.utcnow() - start_ts).total_seconds()
+            duration = (datetime.now(timezone.utc) - start_ts).total_seconds()
             if duration > 10:
                 logger.warning(f"[PasswordResetEmail] Slow send: {duration:.3f}s for {email}")
             else:
@@ -266,7 +266,7 @@ async def request_password_reset(request: Request, password_reset_request: model
                 logger.error(f"[PasswordResetEmail] Failed to send to {email}, deleting token")
                 await database.delete_password_reset_token(pool, token)
         except Exception as e:
-            duration = (datetime.utcnow() - start_ts).total_seconds()
+            duration = (datetime.now(timezone.utc) - start_ts).total_seconds()
             logger.error(f"[PasswordResetEmail] Exception after {duration:.3f}s for {email}: {e}")
             try:
                 await database.delete_password_reset_token(pool, token)
