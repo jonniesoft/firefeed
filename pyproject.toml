@@ -1,0 +1,98 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "firefeed"
+version = "1.0.0"
+description = "AI-powered RSS aggregator and parser with multi-language support"
+readme = "README.md"
+requires-python = ">=3.13"
+license = {text = "MIT"}
+authors = [
+    {name = "FireFeed Project"}
+]
+keywords = [
+    "rss",
+    "news",
+    "aggregator",
+    "ai",
+    "telegram",
+    "fastapi",
+    "translation",
+    "ml"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "Framework :: FastAPI",
+    "Topic :: Communications",
+    "Topic :: Internet :: WWW/HTTP :: Dynamic Content :: News/Diary"
+]
+dependencies = [
+    "python-telegram-bot[job-queue]==22.3",
+    "python-telegram-bot[webhooks]==22.3",
+    "feedparser==6.0.11",
+    "tenacity==9.1.2",
+    "pytz==2025.2",
+    "torch==2.8.0",
+    "transformers==4.55.2",
+    "sentencepiece==0.2.1",
+    "sacremoses==0.1.1",
+    "python-dateutil==2.9.0.post0",
+    "psycopg2-binary==2.9.10",
+    "fastapi==0.116.1",
+    "uvicorn[standard]==0.35.0",
+    "pydantic==2.11.7",
+    "bs4==0.0.2",
+    "pillow==11.3.0",
+    "aiopg==1.4.0",
+    "async-timeout==4.0.3",
+    "pgvector==0.4.1",
+    "scikit-learn==1.7.1",
+    "scipy==1.16.1",
+    "sentence-transformers==5.1.0",
+    "threadpoolctl==3.6.0",
+    "nltk==3.9.1",
+    "aiohttp==3.12.15",
+    "psutil==7.0.0",
+    "numpy==2.3.2",
+    "PyJWT==2.10.1",
+    "dnspython==2.7.0",
+    "email-validator==2.3.0",
+    "python-multipart==0.0.20",
+    "spacy==3.8.7",
+    "aiosmtplib==4.0.2",
+    "bcrypt==5.0.0",
+    "slowapi==0.1.9"
+]
+
+[project.urls]
+Homepage = "https://firefeed.jonniesoft.com"
+Repository = "https://github.com/jonniesoft/firefeed/"
+"Bug Tracker" = "https://github.com/jonniesoft/firefeed/issues"
+
+[dependency-groups]
+test = [
+    "pytest==8.3.4",
+    "pytest-asyncio==0.25.1"
+]
+
+[tool.uv]
+default-groups = ["test"]
+environments = ["implementation_name == 'cpython'"]
+compile-bytecode = true
+
+# [tool.uv.sources]
+# Uncomment if torch requires alternate index for CPU/CUDA versions
+# torch = { index = "pytorch" }
+
+# [[tool.uv.index]]
+# name = "pytorch"
+# url = "https://download.pytorch.org/whl/cpu"
+
+[tool.hatchling.build.targets.wheel]
+packages = ["api", "utils"]
