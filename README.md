@@ -111,7 +111,7 @@ FireFeed - это высокопроизводительная система д
 - **Python 3.13** (строго рекомендуется)
   - Python 3.14 пока не поддерживается из-за отсутствия wheels для `torch==2.8.0`
   - Более старые версии не тестировались с текущими зависимостями
-- UV package manager (установка: `curl -LsSf https://astral.sh/uv/install.sh | sh`)
+- UV package manager (установка, зафиксированная версия 0.9.8: `curl -LsSf https://astral.sh/uv/0.9.8/install.sh | sh`) — версия закреплена как `0.9.8` для совпадения с Dockerfile; при обновлении, обновляйте и Dockerfile, и README синхронно, чтобы избежать дрейфа версий.
 - PostgreSQL 12+ с расширением pgvector
 - Токен Telegram Bot API
 

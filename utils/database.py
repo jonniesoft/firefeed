@@ -1,9 +1,14 @@
 import logging
-from typing import Callable
+from typing import Callable, TypeVar, ParamSpec, Awaitable
 from functools import wraps
 from config import get_shared_db_pool
 
 logger = logging.getLogger(__name__)
+
+
+# Типы для точной аннотации async-декоратора
+P = ParamSpec("P")
+R = TypeVar("R")
 
 
 class DatabaseMixin:
@@ -18,14 +23,14 @@ class DatabaseMixin:
         pass
 
 
-def db_operation(func: Callable) -> Callable:
+def db_operation(func: Callable[P, Awaitable[R]]) -> Callable[P, Awaitable[R]]:
     """
     Декоратор для операций с базой данных.
     Автоматически получает пул, обрабатывает ошибки и логирует.
     """
 
     @wraps(func)
-    async def wrapper(self, *args, **kwargs):
+    async def wrapper(self, *args: P.args, **kwargs: P.kwargs) -> R:
         try:
             pool = await self.get_pool()
             if pool is None:

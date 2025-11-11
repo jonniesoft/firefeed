@@ -263,7 +263,7 @@ FireFeed Team
         try:
             # Загружаем и рендерим шаблон
             template = self.jinja_env.get_template(template_name)
-            return template.render(reset_token=reset_token, current_year=datetime.now().year)
+            return template.render(reset_token=reset_token, current_year=datetime.now(timezone.utc).year)
         except Exception as e:
             logger.error(f"Failed to render template {template_name}: {str(e)}")
             # Возвращаем базовый HTML контент если шаблон не найден
@@ -283,7 +283,7 @@ FireFeed Team
         try:
             # Загружаем и рендерим шаблон
             template = self.jinja_env.get_template(template_name)
-            return template.render(verification_code=verification_code, current_year=datetime.now().year)
+            return template.render(verification_code=verification_code, current_year=datetime.now(timezone.utc).year)
         except Exception as e:
             logger.error(f"Failed to render template {template_name}: {str(e)}")
             # Возвращаем базовый HTML контент если шаблон не найден
@@ -291,7 +291,7 @@ FireFeed Team
 
     def _get_fallback_html_content(self, verification_code: str, language: str) -> str:
         """Возвращает базовый HTML контент если шаблон не найден"""
-        year = datetime.now().year
+        year = datetime.now(timezone.utc).year
         if language == "ru":
             return f"""
 <!DOCTYPE html>
@@ -400,7 +400,7 @@ FireFeed Team
 
     def _get_fallback_reset_html_content(self, reset_token: str, language: str) -> str:
         """Возвращает базовый HTML контент для сброса пароля если шаблон не найден"""
-        year = datetime.now().year
+        year = datetime.now(timezone.utc).year
         reset_link = f"https://firefeed.net/api/v1/auth/reset-password/confirm?token={reset_token}"
         if language == "ru":
             return f"""

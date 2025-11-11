@@ -91,7 +91,7 @@ class ImageProcessor:
 
         except OSError as e:
             logger.warning(
-                f"[WARN] Ошибка файловой системы при сохранении изображения {url}: {e}"
+                f"[WARN] Ошибка файловой системы при сохранении изображения url={url} dir={full_save_directory}: {e}"
             )
             return None
         except Exception as e:

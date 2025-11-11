@@ -16,8 +16,10 @@ class ApplicationRateLimitMiddleware(BaseHTTPMiddleware):
     """Application-level rate limiting middleware"""
 
     async def dispatch(self, request: Request, call_next):
-        # Get client IP
-        get_remote_address(request)
+        """Enforce app-level rate limits and log client IP for observability."""
+        # Log client IP for traceability; SlowAPI also uses it via key_func
+        client_ip = get_remote_address(request)
+        logger.info(f"[RateLimit] client_ip={client_ip} path={request.url.path}")
 
         # Check application-level limits based on endpoint
         path = request.url.path

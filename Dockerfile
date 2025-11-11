@@ -6,7 +6,7 @@
 FROM python:3.13-slim AS builder
 
 # Копируем UV из официального образа (версия зафиксирована для воспроизводимости)
-COPY --from=ghcr.io/astral-sh/uv:0.5.11 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.9.8 /uv /uvx /bin/
 
 # Устанавливаем переменные окружения для оптимизации UV
 ENV UV_LINK_MODE=copy \

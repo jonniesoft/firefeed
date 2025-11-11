@@ -322,7 +322,8 @@ class FireFeedTranslator:
         try:
             memory = psutil.virtual_memory()
             return memory.percent
-        except Exception:
+        except (psutil.Error, OSError) as e:
+            logger.warning(f"[MEMORY] Failed to check memory usage: {e}")
             return 0
 
     def _cleanup_old_models(self):

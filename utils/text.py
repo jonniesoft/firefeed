@@ -46,15 +46,26 @@ class TextProcessor:
         return re.sub(r"\s+", " ", text).strip()
 
     @staticmethod
-    def validate_length(text: str, min_length: int = 1, max_length: int = 10000) -> bool:
-        """Проверяет длину текста"""
+    def validate_length(text: Optional[str], min_length: int = 1, max_length: int = 10000) -> bool:
+        """Проверяет длину текста.
+
+        Принимает Optional[str]; None трактуется как пустой текст.
+        Для None/пустой строки возвращает True, если min_length == 0.
+        """
         if not text:
             return min_length == 0
         return min_length <= len(text) <= max_length
 
     @staticmethod
-    def remove_duplicates(text: str) -> str:
-        """Удаляет последовательные дубликаты слов"""
+    def remove_duplicates(text: Optional[str]) -> str:
+        """Удаляет последовательные дубликаты слов.
+
+        Если входной текст None — возвращает пустую строку.
+        Если пустая строка — возвращает исходное пустое значение.
+        """
+        if text is None:
+            return ""
+
         words = text.split()
         if not words:
             return text
@@ -68,8 +79,14 @@ class TextProcessor:
         return " ".join(deduped_words)
 
     @staticmethod
-    def extract_sentences(text: str, lang_code: str = "en") -> list:
-        """Разбивает текст на предложения (упрощенная версия без spaCy)"""
+    def extract_sentences(text: Optional[str], lang_code: str = "en") -> list:
+        """Разбивает текст на предложения (упрощенная версия без spaCy).
+
+        При None/пустой строке возвращает пустой список. Параметр lang_code
+        сохраняет значение по умолчанию.
+        """
+        if not text:
+            return []
         # Простая эвристика для разбиения на предложения
         sentences = re.split(r"[.!?]+", text)
         return [s.strip() for s in sentences if s.strip()]

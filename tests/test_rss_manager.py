@@ -153,10 +153,13 @@ class TestRSSManager:
     async def test_get_last_published_time_for_feed_success(self, rss_manager, mock_pool, mock_conn, mock_cur):
         mock_pool.acquire.return_value.__aenter__.return_value = mock_conn
         mock_conn.cursor.return_value.__aenter__.return_value = mock_cur
-        mock_cur.fetchone.return_value = (datetime.now(timezone.utc),)
+        fixed_dt = datetime(2020, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        mock_cur.fetchone.return_value = (fixed_dt,)
 
         result = await rss_manager.get_last_published_time_for_feed(1)
         assert isinstance(result, datetime)
+        assert result == fixed_dt
+        assert result.tzinfo == timezone.utc
 
     async def test_get_recent_rss_items_count_for_feed_success(self, rss_manager, mock_pool, mock_conn, mock_cur):
         mock_pool.acquire.return_value.__aenter__.return_value = mock_conn
