@@ -3,7 +3,7 @@
 [![Python](https://img.shields.io/badge/Python-3.13-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.116.1-green.svg)](https://fastapi.tiangolo.com/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-12+-blue.svg)](https://www.postgresql.org/)
-[![Docker](https://img.shields.io/badge/Docker-Supported-blue.svg)](https://www.docker.com/)
+[![Podman](https://img.shields.io/badge/Podman-Supported-blue.svg)](https://podman.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Tests](https://img.shields.io/badge/Tests-Passing-green.svg)](https://github.com/yuremweiland/firefeed/actions)
 
@@ -82,7 +82,7 @@ FireFeed - это высокопроизводительная система д
 - Webhook-поддержка
 
 ### Инфраструктура
-- Docker-контейнеризация
+- Podman-контейнеризация
 - systemd для управления сервисами
 - nginx для проксирования
 
@@ -157,36 +157,50 @@ chmod +x ./run_api.sh
 ./run_api.sh
 ```
 
-### Запуск через Docker
+### Запуск через Podman
 
-Проект поддерживает Docker-контейнеризацию с использованием multi-stage сборки для оптимизации размера образа.
+Проект поддерживает контейнеризацию и запуск через Podman с использованием multi-stage сборки.
 
 **Требования:**
-- Docker 20.10+ с поддержкой BuildKit
+- Podman 4+ (рекомендуется 5+)
 
 **Сборка образа:**
 
 ```bash
-# Включите BuildKit (рекомендуется)
-export DOCKER_BUILDKIT=1
-
-# Соберите образ
-docker build -t firefeed:latest .
+# Соберите образ (из Dockerfile)
+podman build -t firefeed:latest -f Dockerfile .
 ```
 
-**Примечание**: Dockerfile использует BuildKit-специфичные функции (cache mounts). Убедитесь, что BuildKit включен через переменную окружения `DOCKER_BUILDKIT=1` или настройте Docker daemon для использования BuildKit по умолчанию.
+**Примечание**: Dockerfile содержит расширения синтаксиса Dockerfile 1.7 (например, `RUN --mount=type=cache`). В большинстве окружений Podman образ собирается корректно; если ваша версия Podman/Buildah не поддерживает эти расширения и сборка падает, попробуйте:
+- выполнить сборку без кэша: `podman build --no-cache -t firefeed:latest -f Dockerfile .`
+- или временно собрать образ в Docker и запускать в Podman
 
 **Запуск контейнера:**
 
 ```bash
 # Запуск API
-docker run -d -p 8000:8000 --env-file .env firefeed:latest
+podman run -d -p 8000:8000 --env-file .env --name firefeed-api firefeed:latest
 
 # Запуск бота (переопределение CMD)
-docker run -d --env-file .env firefeed:latest python bot.py
+podman run -d --env-file .env --name firefeed-bot firefeed:latest python bot.py
 
 # Запуск RSS парсера
-docker run -d --env-file .env firefeed:latest python rss_parser.py
+podman run -d --env-file .env --name firefeed-parser firefeed:latest python rss_parser.py
+```
+
+### Запуск через podman-compose
+
+В репозитории используется файл `docker-compose.yml`, совместимый с `podman-compose`.
+
+```bash
+# Поднять все сервисы в фоне
+podman-compose -f docker-compose.yml up -d
+
+# Проверить состояние
+podman-compose -f docker-compose.yml ps
+
+# Остановить и удалить
+podman-compose -f docker-compose.yml down
 ```
 
 ## Конфигурация
@@ -363,25 +377,25 @@ uv run python script.py
 Все тесты
 
 ```bash
-pytest tests/
+uv run pytest tests/
 ```
 
 Конкретный модуль
 
 ```bash
-pytest tests/test_models.py
+uv run pytest tests/test_models.py
 ```
 
 С остановкой на первой ошибке
 
 ```bash
-pytest tests/ -x
+uv run pytest tests/ -x
 ```
 
 С кратким выводом
 
 ```bash
-pytest tests/ --tb=short
+uv run pytest tests/ --tb=short
 ```
 
 ### Структура проекта
