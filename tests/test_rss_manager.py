@@ -1,6 +1,8 @@
-import pytest
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timezone
+
+import pytest
+
 from rss_manager import RSSManager
 
 
@@ -153,13 +155,13 @@ class TestRSSManager:
     async def test_get_last_published_time_for_feed_success(self, rss_manager, mock_pool, mock_conn, mock_cur):
         mock_pool.acquire.return_value.__aenter__.return_value = mock_conn
         mock_conn.cursor.return_value.__aenter__.return_value = mock_cur
-        fixed_dt = datetime(2020, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        fixed_dt = datetime(2020, 1, 1, 12, 0, 0, tzinfo=UTC)
         mock_cur.fetchone.return_value = (fixed_dt,)
 
         result = await rss_manager.get_last_published_time_for_feed(1)
         assert isinstance(result, datetime)
         assert result == fixed_dt
-        assert result.tzinfo == timezone.utc
+        assert result.tzinfo == UTC
 
     async def test_get_recent_rss_items_count_for_feed_success(self, rss_manager, mock_pool, mock_conn, mock_cur):
         mock_pool.acquire.return_value.__aenter__.return_value = mock_conn
@@ -313,7 +315,7 @@ class TestRSSManager:
         mock_pool.acquire.return_value.__aenter__.return_value = mock_conn
         mock_conn.cursor.return_value.__aenter__.return_value = mock_cur
         mock_cur.fetchone = AsyncMock(side_effect=[
-            ("news_id", "Title", "Content", "en", "image.jpg", 1, 1, None, datetime.now(timezone.utc), datetime.now(timezone.utc), "Tech", "BBC", "http://example.com"),
+            ("news_id", "Title", "Content", "en", "image.jpg", 1, 1, None, datetime.now(UTC), datetime.now(UTC), "Tech", "BBC", "http://example.com"),
             None
         ])
         mock_cur.description = [('news_id',), ('original_title',), ('original_content',), ('original_language',), ('image_filename',), ('category_id',), ('rss_feed_id',), ('telegram_published_at',), ('created_at',), ('updated_at',), ('category_name',), ('source_name',), ('source_url',)]

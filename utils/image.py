@@ -1,11 +1,13 @@
-import os
 import hashlib
 import logging
-from urllib.parse import urlparse, urljoin
-from config import IMAGES_ROOT_DIR, IMAGE_FILE_EXTENSIONS
+import os
 from datetime import datetime
+from urllib.parse import urljoin, urlparse
+
 import aiohttp
 from bs4 import BeautifulSoup
+
+from config import IMAGE_FILE_EXTENSIONS, IMAGES_ROOT_DIR
 
 logger = logging.getLogger(__name__)
 

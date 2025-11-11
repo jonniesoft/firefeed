@@ -1,9 +1,10 @@
 import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 
-from api.middleware import limiter
 from api import database, models
 from api.deps import get_current_user
+from api.middleware import limiter
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +51,7 @@ router = APIRouter(
     }
 )
 @limiter.limit("300/minute")
-async def generate_telegram_link_code(request: Request, current_user: dict = Depends(get_current_user)):
+async def generate_telegram_link_code(_request: Request, current_user: dict = Depends(get_current_user)):
     from user_manager import UserManager
 
     user_manager = UserManager()
@@ -88,7 +89,7 @@ async def generate_telegram_link_code(request: Request, current_user: dict = Dep
     }
 )
 @limiter.limit("300/minute")
-async def unlink_telegram_account(request: Request, current_user: dict = Depends(get_current_user)):
+async def unlink_telegram_account(_request: Request, current_user: dict = Depends(get_current_user)):
     from user_manager import UserManager
 
     user_manager = UserManager()
@@ -127,7 +128,7 @@ async def unlink_telegram_account(request: Request, current_user: dict = Depends
     }
 )
 @limiter.limit("300/minute")
-async def get_telegram_link_status(request: Request, current_user: dict = Depends(get_current_user)):
+async def get_telegram_link_status(_request: Request, current_user: dict = Depends(get_current_user)):
     pool = await database.get_db_pool()
     if pool is None:
         raise HTTPException(status_code=500, detail="Database error")

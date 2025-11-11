@@ -2,17 +2,17 @@ import asyncio
 import json
 import logging
 from datetime import datetime
-from typing import Dict, List
+
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from api import database
 import config
+from api import database
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-active_connections: Dict[WebSocket, dict] = {}
+active_connections: dict[WebSocket, dict] = {}
 active_connections_lock = asyncio.Lock()
 
 
@@ -35,7 +35,7 @@ async def websocket_endpoint(websocket: WebSocket):
         async with active_connections_lock:
             active_connections[websocket] = params
         logger.info(f"[WebSocket] New connection with params: {params}. Total connections: {len(active_connections)}")
-    except asyncio.TimeoutError:
+    except TimeoutError:
         await websocket.send_text(json.dumps({"error": "Subscribe timeout"}))
         await websocket.close()
         return
@@ -81,7 +81,7 @@ async def websocket_endpoint(websocket: WebSocket):
         logger.info(f"[WebSocket] Connection closed. Total connections: {len(active_connections)}")
 
 
-async def broadcast_new_rss_items(rss_items_payload: List[dict]):
+async def broadcast_new_rss_items(rss_items_payload: list[dict]):
     if not active_connections:
         return
     disconnected = []

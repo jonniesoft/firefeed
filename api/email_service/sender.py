@@ -1,10 +1,12 @@
-from aiosmtplib import send
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 import logging
 import os
+from datetime import UTC, datetime
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
+from aiosmtplib import send
 from jinja2 import Environment, FileSystemLoader
-from datetime import datetime, timezone
+
 from config import SMTP_CONFIG
 
 # Настройка логирования
@@ -33,7 +35,7 @@ class EmailSender:
         Returns:
             bool: True если письмо отправлено успешно, False в случае ошибки
         """
-        start_ts = datetime.now(timezone.utc)
+        start_ts = datetime.now(UTC)
         logger.info(f"[EmailSender] Password reset email start: to={to_email} at {start_ts.isoformat()}Z")
         try:
             # Создаем сообщение
@@ -70,7 +72,7 @@ class EmailSender:
                 timeout=10,
             )
 
-            duration = (datetime.now(timezone.utc) - start_ts).total_seconds()
+            duration = (datetime.now(UTC) - start_ts).total_seconds()
             if duration > 10:
                 logger.warning(f"[EmailSender] Password reset email slow ({duration:.3f}s) to {to_email}")
             else:
@@ -78,8 +80,8 @@ class EmailSender:
             return True
 
         except Exception as e:
-            duration = (datetime.now(timezone.utc) - start_ts).total_seconds()
-            logger.error(f"[EmailSender] Failed to send password reset email to {to_email} after {duration:.3f}s: {str(e)}")
+            duration = (datetime.now(UTC) - start_ts).total_seconds()
+            logger.error(f"[EmailSender] Failed to send password reset email to {to_email} after {duration:.3f}s: {e!s}")
             return False
 
     async def send_verification_email(self, to_email: str, verification_code: str, language: str = "en") -> bool:
@@ -94,7 +96,7 @@ class EmailSender:
         Returns:
             bool: True если письмо отправлено успешно, False в случае ошибки
         """
-        start_ts = datetime.now(timezone.utc)
+        start_ts = datetime.now(UTC)
         logger.info(f"[EmailSender] Verification email start: to={to_email} at {start_ts.isoformat()}Z")
         try:
             # Создаем сообщение
@@ -131,7 +133,7 @@ class EmailSender:
                 timeout=10,
             )
 
-            duration = (datetime.now(timezone.utc) - start_ts).total_seconds()
+            duration = (datetime.now(UTC) - start_ts).total_seconds()
             if duration > 10:
                 logger.warning(f"[EmailSender] Verification email slow ({duration:.3f}s) to {to_email}")
             else:
@@ -139,8 +141,8 @@ class EmailSender:
             return True
 
         except Exception as e:
-            duration = (datetime.now(timezone.utc) - start_ts).total_seconds()
-            logger.error(f"[EmailSender] Failed to send verification email to {to_email} after {duration:.3f}s: {str(e)}")
+            duration = (datetime.now(UTC) - start_ts).total_seconds()
+            logger.error(f"[EmailSender] Failed to send verification email to {to_email} after {duration:.3f}s: {e!s}")
             return False
 
     def _get_reset_subject(self, language: str) -> str:
@@ -263,9 +265,9 @@ FireFeed Team
         try:
             # Загружаем и рендерим шаблон
             template = self.jinja_env.get_template(template_name)
-            return template.render(reset_token=reset_token, current_year=datetime.now(timezone.utc).year)
+            return template.render(reset_token=reset_token, current_year=datetime.now(UTC).year)
         except Exception as e:
-            logger.error(f"Failed to render template {template_name}: {str(e)}")
+            logger.error(f"Failed to render template {template_name}: {e!s}")
             # Возвращаем базовый HTML контент если шаблон не найден
             return self._get_fallback_reset_html_content(reset_token, language)
 
@@ -283,15 +285,15 @@ FireFeed Team
         try:
             # Загружаем и рендерим шаблон
             template = self.jinja_env.get_template(template_name)
-            return template.render(verification_code=verification_code, current_year=datetime.now(timezone.utc).year)
+            return template.render(verification_code=verification_code, current_year=datetime.now(UTC).year)
         except Exception as e:
-            logger.error(f"Failed to render template {template_name}: {str(e)}")
+            logger.error(f"Failed to render template {template_name}: {e!s}")
             # Возвращаем базовый HTML контент если шаблон не найден
             return self._get_fallback_html_content(verification_code, language)
 
     def _get_fallback_html_content(self, verification_code: str, language: str) -> str:
         """Возвращает базовый HTML контент если шаблон не найден"""
-        year = datetime.now(timezone.utc).year
+        year = datetime.now(UTC).year
         if language == "ru":
             return f"""
 <!DOCTYPE html>
@@ -305,21 +307,21 @@ FireFeed Team
         <div style="text-align: center; margin-bottom: 30px;">
             <h1 style="color: #ff6b35;">🔥 FireFeed</h1>
         </div>
-        
+
         <div style="background-color: #f9f9f9; padding: 30px; border-radius: 10px; border-left: 4px solid #ff6b35;">
             <h2 style="color: #333; margin-top: 0;">Добро пожаловать в FireFeed!</h2>
-            
+
             <p>Спасибо за регистрацию в нашем сервисе новостей.</p>
-            
+
             <div style="background-color: #fff; padding: 20px; border-radius: 5px; text-align: center; margin: 20px 0;">
                 <p style="margin: 0; font-size: 16px; color: #666;">Ваш код подтверждения:</p>
                 <h3 style="margin: 10px 0; font-size: 32px; color: #ff6b35; letter-spacing: 3px;">{verification_code}</h3>
                 <p style="margin: 0; font-size: 14px; color: #999;">Введите этот код на странице регистрации</p>
             </div>
-            
+
             <p>Если вы не регистрировались в FireFeed, просто проигнорируйте это письмо.</p>
         </div>
-        
+
         <div style="text-align: center; margin-top: 30px; color: #999; font-size: 12px;">
             <p>© {year} FireFeed. Все права защищены.</p>
         </div>
@@ -340,21 +342,21 @@ FireFeed Team
         <div style="text-align: center; margin-bottom: 30px;">
             <h1 style="color: #ff6b35;">🔥 FireFeed</h1>
         </div>
-        
+
         <div style="background-color: #f9f9f9; padding: 30px; border-radius: 10px; border-left: 4px solid #ff6b35;">
             <h2 style="color: #333; margin-top: 0;">Willkommen bei FireFeed!</h2>
-            
+
             <p>Vielen Dank für Ihre Registrierung bei unserem Nachrichtendienst.</p>
-            
+
             <div style="background-color: #fff; padding: 20px; border-radius: 5px; text-align: center; margin: 20px 0;">
                 <p style="margin: 0; font-size: 16px; color: #666;">Ihr Verifizierungscode:</p>
                 <h3 style="margin: 10px 0; font-size: 32px; color: #ff6b35; letter-spacing: 3px;">{verification_code}</h3>
                 <p style="margin: 0; font-size: 14px; color: #999;">Geben Sie diesen Code auf der Registrierungsseite ein</p>
             </div>
-            
+
             <p>Wenn Sie sich nicht bei FireFeed registriert haben, ignorieren Sie bitte diese E-Mail.</p>
         </div>
-        
+
         <div style="text-align: center; margin-top: 30px; color: #999; font-size: 12px;">
             <p>© {year} FireFeed. Alle Rechte vorbehalten.</p>
         </div>
@@ -375,21 +377,21 @@ FireFeed Team
         <div style="text-align: center; margin-bottom: 30px;">
             <h1 style="color: #ff6b35;">🔥 FireFeed</h1>
         </div>
-        
+
         <div style="background-color: #f9f9f9; padding: 30px; border-radius: 10px; border-left: 4px solid #ff6b35;">
             <h2 style="color: #333; margin-top: 0;">Welcome to FireFeed!</h2>
-            
+
             <p>Thank you for registering with our news service.</p>
-            
+
             <div style="background-color: #fff; padding: 20px; border-radius: 5px; text-align: center; margin: 20px 0;">
                 <p style="margin: 0; font-size: 16px; color: #666;">Your verification code:</p>
                 <h3 style="margin: 10px 0; font-size: 32px; color: #ff6b35; letter-spacing: 3px;">{verification_code}</h3>
                 <p style="margin: 0; font-size: 14px; color: #999;">Enter this code on the registration page</p>
             </div>
-            
+
             <p>If you didn't register with FireFeed, please ignore this email.</p>
         </div>
-        
+
         <div style="text-align: center; margin-top: 30px; color: #999; font-size: 12px;">
             <p>© {year} FireFeed. All rights reserved.</p>
         </div>
@@ -400,7 +402,7 @@ FireFeed Team
 
     def _get_fallback_reset_html_content(self, reset_token: str, language: str) -> str:
         """Возвращает базовый HTML контент для сброса пароля если шаблон не найден"""
-        year = datetime.now(timezone.utc).year
+        year = datetime.now(UTC).year
         reset_link = f"https://firefeed.net/api/v1/auth/reset-password/confirm?token={reset_token}"
         if language == "ru":
             return f"""

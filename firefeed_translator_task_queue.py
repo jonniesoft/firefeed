@@ -1,7 +1,7 @@
 import asyncio
-from asyncio import Queue
-import time
 import logging
+import time
+from asyncio import Queue
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +53,7 @@ class FireFeedTranslatorTaskQueue:
 
                 finally:
                     self.queue.task_done()
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 # Продолжаем цикл если таймаут
                 continue
             except Exception as e:
@@ -100,7 +100,7 @@ class FireFeedTranslatorTaskQueue:
         # Ждем завершения с таймаутом
         try:
             await asyncio.wait_for(asyncio.gather(*self.workers, return_exceptions=True), timeout=10.0)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("[QUEUE] ⚠️ Принудительная остановка воркеров")
 
         logger.info("[QUEUE] ✅ Очередь задач остановлена")

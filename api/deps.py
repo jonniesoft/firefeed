@@ -1,14 +1,13 @@
 import logging
 import re
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 from urllib.parse import urlparse
 
 import bcrypt
 import jwt
-from jwt.exceptions import PyJWTError
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from jwt.exceptions import PyJWTError
 
 import config
 
@@ -21,12 +20,12 @@ ACCESS_TOKEN_EXPIRE_MINUTES = config.JWT_ACCESS_TOKEN_EXPIRE_MINUTES
 security = HTTPBearer()
 
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
+        expire = datetime.now(UTC) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
+        expire = datetime.now(UTC) + timedelta(minutes=15)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -128,7 +127,7 @@ def format_datetime(dt_obj):
     return dt_obj.isoformat() if dt_obj else None
 
 
-def get_full_image_url(image_filename: str) -> Optional[str]:
+def get_full_image_url(image_filename: str) -> str | None:
     if not image_filename:
         return None
     if image_filename.startswith(("http://", "https://")):
@@ -158,8 +157,9 @@ def build_translations_dict(row_dict):
 
 def validate_rss_items_query_params(display_language, from_date, cursor_published_at):
     supported_languages = ["ru", "en", "de", "fr"]
-    from fastapi import HTTPException, status
     from datetime import datetime
+
+    from fastapi import HTTPException, status
 
     if display_language is not None and display_language not in supported_languages:
         raise HTTPException(

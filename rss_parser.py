@@ -1,13 +1,14 @@
 import asyncio
+import logging
 import signal
 import sys
-import logging
-from logging_config import setup_logging
-from rss_manager import RSSManager
+
+from config import close_shared_db_pool
 from firefeed_dublicate_detector import FireFeedDuplicateDetector
 from firefeed_translator import FireFeedTranslator
 from firefeed_translator_task_queue import FireFeedTranslatorTaskQueue
-from config import close_shared_db_pool
+from logging_config import setup_logging
+from rss_manager import RSSManager
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -202,7 +203,7 @@ class RSSParserService:
             try:
                 # Ждем немного, чтобы задачи могли завершиться по флагу self.running
                 await asyncio.wait_for(asyncio.shield(self._wait_for_tasks_to_stop()), timeout=10.0)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.info("[RSS_PARSER] Таймаут ожидания завершения задач. Продолжаем остановку.")
         # Для SIGINT продолжаем
 

@@ -1,6 +1,8 @@
 import logging
+from collections.abc import Callable
 from functools import wraps
-from typing import Callable, Any
+from typing import Any
+
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 logger = logging.getLogger(__name__)

@@ -1,21 +1,23 @@
 import asyncio
-import time
-import re
-import logging
-from config import CHANNEL_IDS
-import threading
-from concurrent.futures import ThreadPoolExecutor
-import traceback
 import gc
-import psutil
+import logging
+import re
+import threading
+import time
+import traceback
 from collections import OrderedDict
-from utils.text import TextProcessor
-from utils.cache import SpacyModelCache
-from transformers import M2M100Tokenizer, M2M100ForConditionalGeneration
+from concurrent.futures import ThreadPoolExecutor
+
+import psutil
+from transformers import M2M100ForConditionalGeneration, M2M100Tokenizer
+
+from config import CHANNEL_IDS
 from firefeed_embeddings_processor import FireFeedEmbeddingsProcessor
 
 # Импортируем терминологический словарь
 from firefeed_translator_terminology_dict import TERMINOLOGY_DICT
+from utils.cache import SpacyModelCache
+from utils.text import TextProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -120,48 +122,43 @@ class FireFeedTranslator:
             "that", "here", "there", "so", "but", "or", "and", "if", "then", "when", "where", "why",
             "how", "all", "some", "any", "no", "yes", "not", "very", "just", "only", "also", "even",
             "too", "much", "many", "few", "more", "most", "less", "least", "good", "bad", "big",
-            "small", "new", "old", "first", "last", "next", "now", "then", "up", "down", "out", "over",
+            "small", "new", "old", "first", "last", "next", "now", "up", "down", "out", "over",
             "under", "above", "below", "left", "right", "back", "front", "before", "after", "during",
-            "while", "since", "until", "from", "at", "by", "for", "with", "about", "against",
+            "while", "since", "until", "from", "about", "against",
             "between", "into", "through", "across", "along", "around", "behind", "beside", "beyond",
             "inside", "outside", "near", "far", "AI"
             # Russian
             "и", "в", "на", "с", "по", "из", "к", "от", "у", "о", "а", "но", "да", "или", "что", "как",
             "где", "когда", "почему", "я", "ты", "он", "она", "оно", "мы", "вы", "они", "это", "тот",
-            "та", "то", "те", "мой", "твой", "его", "её", "наш", "ваш", "их", "кто", "что", "где",
-            "когда", "почему", "как", "зачем", "ли", "бы", "же", "то", "ни", "нибудь", "либо", "или",
-            "да", "нет", "даже", "уже", "ещё", "тоже", "так", "также", "здесь", "там", "тут", "туда",
+            "та", "то", "те", "мой", "твой", "его", "её", "наш", "ваш", "их", "кто", "зачем", "ли", "бы", "же", "ни", "нибудь", "либо", "нет", "даже", "уже", "ещё", "тоже", "так", "также", "здесь", "там", "тут", "туда",
             "сюда", "оттуда", "отсюда", "везде", "нигде", "всегда", "никогда", "иногда", "часто",
             "редко", "много", "мало", "больше", "меньше", "лучше", "хуже", "хорошо", "плохо",
             "большой", "маленький", "новый", "старый", "первый", "последний", "следующий", "теперь",
-            "тогда", "здесь", "там", "вверх", "вниз", "внутри", "снаружи", "спереди", "сзади",
+            "тогда", "вверх", "вниз", "внутри", "снаружи", "спереди", "сзади",
             "слева", "справа", "перед", "после", "во", "со", "изо", "ко", "ото", "до", "без", "для",
             "про", "через", "сквозь", "между", "около", "возле", "против", "ради", "благодаря",
             "согласно", "несмотря", "вопреки", "вследствие", "из-за", "вслед", "вместо", "кроме",
             "помимо", "сверх", "вдоль", "вокруг", "напротив", "рядом", "близко", "далеко", "ИИ",
             # German
             "der", "die", "das", "und", "mit", "auf", "für", "von", "zu", "im", "am", "ich", "du",
-            "er", "sie", "es", "wir", "ihr", "sie", "dies", "das", "der", "die", "den", "dem", "des",
-            "ein", "eine", "einen", "einem", "eines", "mein", "dein", "sein", "ihr", "unser", "euer",
-            "ihr", "wer", "was", "wo", "wann", "warum", "wie", "weshalb", "ob", "wenn", "dann",
+            "er", "sie", "es", "wir", "ihr", "dies", "den", "dem", "des",
+            "ein", "eine", "einen", "einem", "eines", "mein", "dein", "sein", "unser", "euer",
+            "wer", "wo", "wann", "warum", "wie", "weshalb", "ob", "wenn", "dann",
             "hier", "da", "dort", "hin", "her", "überall", "nirgendwo", "immer", "nie", "manchmal",
             "oft", "selten", "viel", "wenig", "mehr", "weniger", "besser", "schlechter", "gut",
             "schlecht", "groß", "klein", "neu", "alt", "erster", "letzter", "nächster", "jetzt",
-            "dann", "hier", "da", "oben", "unten", "innen", "außen", "vorn", "hinten", "links",
-            "rechts", "vor", "nach", "während", "seit", "bis", "von", "zu", "bei", "für", "mit",
-            "über", "gegen", "zwischen", "in", "aus", "durch", "quer", "entlang", "um", "hinter",
+            "oben", "unten", "innen", "außen", "vorn", "hinten", "links",
+            "rechts", "vor", "nach", "während", "seit", "bis", "bei", "über", "gegen", "zwischen", "aus", "durch", "quer", "entlang", "um", "hinter",
             "neben", "jenseits", "nahe", "fern", "KI",
             # French
             "le", "la", "les", "et", "avec", "pour", "dans", "je", "tu", "il", "elle", "nous", "vous",
             "ils", "elles", "ce", "cet", "cette", "ces", "mon", "ton", "son", "notre", "votre",
-            "leur", "qui", "que", "quoi", "où", "quand", "pourquoi", "comment", "si", "quand",
-            "alors", "ici", "là", "partout", "nulle", "toujours", "jamais", "parfois", "souvent",
+            "leur", "qui", "que", "quoi", "où", "quand", "pourquoi", "comment", "si", "alors", "ici", "là", "partout", "nulle", "toujours", "jamais", "parfois", "souvent",
             "rarement", "beaucoup", "peu", "plus", "moins", "mieux", "pire", "bien", "mal", "grand",
-            "petit", "nouveau", "vieux", "premier", "dernier", "suivant", "maintenant", "alors",
-            "ici", "là", "haut", "bas", "dedans", "dehors", "devant", "derrière", "gauche", "droite",
-            "avant", "après", "pendant", "depuis", "jusqu", "de", "à", "chez", "pour", "avec", "sur",
-            "contre", "entre", "dans", "hors", "par", "au-dessus", "en-dessous", "à-travers",
-            "le-long", "autour", "derrière", "à-côté", "au-delà", "dedans", "dehors", "près", "loin", "IA"
+            "petit", "nouveau", "vieux", "premier", "dernier", "suivant", "maintenant", "haut", "bas", "dedans", "dehors", "devant", "derrière", "gauche", "droite",
+            "avant", "après", "pendant", "depuis", "jusqu", "de", "à", "chez", "sur",
+            "contre", "entre", "hors", "par", "au-dessus", "en-dessous", "à-travers",
+            "le-long", "autour", "à-côté", "au-delà", "près", "loin", "IA"
         }
         filtered_words = []
         for word in text.split():
@@ -657,7 +654,7 @@ class FireFeedTranslator:
         """Собирает переведенные тексты из батчей"""
         result_texts = [""] * len(texts)
         current_pos = 0
-        for i, (text, sent_count) in enumerate(zip(texts, sentence_counts)):
+        for i, (text, sent_count) in enumerate(zip(texts, sentence_counts, strict=False)):
             if sent_count > 0:
                 translated_sentences = translated_batches[current_pos : current_pos + sent_count]
                 result_text = " ".join(translated_sentences)
@@ -731,7 +728,7 @@ class FireFeedTranslator:
                 result = await asyncio.wait_for(future, timeout=120.0)
                 self.stats["translations_processed"] += len(texts)
                 return result
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.error(f"[ERROR] [TRANSLATOR] ТАЙМАУТ (120 сек) для '{source_lang}' -> '{target_lang}'!")
                 return texts
             except Exception as e:
@@ -795,7 +792,7 @@ class FireFeedTranslator:
 
                     # Сохраняем результаты
                     translation_results[(src_lang, tgt_lang)] = list(
-                        zip([field_type for _, _, _, field_type in texts_to_process], translated_texts)
+                        zip([field_type for _, _, _, field_type in texts_to_process], translated_texts, strict=False)
                     )
                 except Exception as e:
                     group_duration = time.time() - group_start_time

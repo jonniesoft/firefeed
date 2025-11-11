@@ -1,6 +1,7 @@
 import logging
+from typing import Any
+
 import spacy
-from typing import Optional, Dict, Any
 
 logger = logging.getLogger(__name__)
 
@@ -10,10 +11,10 @@ class SpacyModelCache:
 
     def __init__(self, max_cache_size: int = 3):
         self.max_cache_size = max_cache_size
-        self.models: Dict[str, Any] = {}
+        self.models: dict[str, Any] = {}
         self.usage_order: list = []  # LRU: последний использованный в конце
 
-    def get_model(self, lang_code: str) -> Optional[Any]:
+    def get_model(self, lang_code: str) -> Any | None:
         """
         Получает spaCy модель для языка с LRU-кэшированием
 

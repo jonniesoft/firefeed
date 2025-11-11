@@ -1,6 +1,7 @@
-from pydantic import BaseModel, EmailStr, Field
-from typing import List, Optional, Generic, TypeVar, Dict, Set
 from datetime import datetime
+from typing import Generic, TypeVar
+
+from pydantic import BaseModel, EmailStr, Field
 
 # Определяем типовой параметр для Generic
 T = TypeVar("T")
@@ -8,8 +9,8 @@ T = TypeVar("T")
 
 # Модель для представления перевода на конкретный язык
 class LanguageTranslation(BaseModel):
-    title: Optional[str] = None
-    content: Optional[str] = None
+    title: str | None = None
+    content: str | None = None
 
 
 # Модель для представления новости в API
@@ -18,12 +19,12 @@ class RSSItem(BaseModel):
     original_title: str
     original_content: str
     original_language: str
-    image_url: Optional[str] = None
-    category: Optional[str] = None
-    source: Optional[str] = None  # Имя источника новости
-    source_url: Optional[str] = None
-    published_at: Optional[str] = None  # ISO формат даты-времени
-    translations: Optional[Dict[str, LanguageTranslation]] = None
+    image_url: str | None = None
+    category: str | None = None
+    source: str | None = None  # Имя источника новости
+    source_url: str | None = None
+    published_at: str | None = None  # ISO формат даты-времени
+    translations: dict[str, LanguageTranslation] | None = None
 
     class Config:
         from_attributes = True
@@ -37,7 +38,7 @@ class CategoryItem(BaseModel):
 class SourceItem(BaseModel):
     id: int
     name: str
-    description: Optional[str] = None
+    description: str | None = None
 
 
 class LanguageItem(BaseModel):
@@ -46,7 +47,7 @@ class LanguageItem(BaseModel):
 
 class PaginatedResponse(BaseModel, Generic[T]):
     count: int
-    results: List[T]
+    results: list[T]
 
 
 # Модель для ответа с ошибкой (опционально, но полезно)
@@ -72,15 +73,15 @@ class UserLogin(BaseModel):
 
 
 class UserUpdate(BaseModel):
-    email: Optional[EmailStr] = None
-    language: Optional[str] = None
+    email: EmailStr | None = None
+    language: str | None = None
 
 
 class UserResponse(UserBase):
     id: int
     is_active: bool
     created_at: datetime
-    updated_at: Optional[datetime] = None
+    updated_at: datetime | None = None
 
     class Config:
         from_attributes = True
@@ -93,7 +94,7 @@ class Token(BaseModel):
 
 
 class TokenData(BaseModel):
-    user_id: Optional[int] = None
+    user_id: int | None = None
 
 
 class PasswordResetRequest(BaseModel):
@@ -126,8 +127,8 @@ class SuccessResponse(BaseModel):
 
 class UserRSSFeedBase(BaseModel):
     url: str
-    name: Optional[str] = None
-    category_id: Optional[int] = None
+    name: str | None = None
+    category_id: int | None = None
     language: str = "en"
 
 
@@ -136,9 +137,9 @@ class UserRSSFeedCreate(UserRSSFeedBase):
 
 
 class UserRSSFeedUpdate(BaseModel):
-    name: Optional[str] = None
-    category_id: Optional[int] = None
-    is_active: Optional[bool] = None
+    name: str | None = None
+    category_id: int | None = None
+    is_active: bool | None = None
 
 
 class UserRSSFeedResponse(UserRSSFeedBase):
@@ -146,18 +147,18 @@ class UserRSSFeedResponse(UserRSSFeedBase):
     user_id: int
     is_active: bool
     created_at: datetime
-    updated_at: Optional[datetime] = None
+    updated_at: datetime | None = None
 
     class Config:
         from_attributes = True
 
 
 class UserCategoriesUpdate(BaseModel):
-    category_ids: Set[int]
+    category_ids: set[int]
 
 
 class UserCategoriesResponse(BaseModel):
-    category_ids: List[int]
+    category_ids: list[int]
 
 
 # --- Модели для привязки Telegram ---
@@ -170,5 +171,5 @@ class TelegramLinkResponse(BaseModel):
 
 class TelegramLinkStatusResponse(BaseModel):
     is_linked: bool
-    telegram_id: Optional[int] = None
-    linked_at: Optional[str] = None
+    telegram_id: int | None = None
+    linked_at: str | None = None

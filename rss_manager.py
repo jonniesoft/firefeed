@@ -1,15 +1,23 @@
 # rss_manager.py
 import asyncio
 import hashlib
-import os
 import logging
-from datetime import datetime, timezone, timedelta
+import os
+import traceback
+from datetime import UTC, datetime, timedelta
+
+import aiohttp
 import feedparser
 import pytz
-import aiohttp
+
+from config import (
+    IMAGES_ROOT_DIR,
+    MAX_CONCURRENT_FEEDS,
+    MAX_ENTRIES_PER_FEED,
+    MAX_TOTAL_RSS_ITEMS,
+    get_shared_db_pool,
+)
 from utils.image import ImageProcessor
-from config import IMAGES_ROOT_DIR, get_shared_db_pool, MAX_TOTAL_RSS_ITEMS, MAX_ENTRIES_PER_FEED, MAX_CONCURRENT_FEEDS
-import traceback
 
 logger = logging.getLogger(__name__)
 
@@ -33,16 +41,15 @@ class RSSManager:
         try:
             pool = await self.get_pool()
             feeds = []
-            async with pool.acquire() as conn:
-                async with conn.cursor() as cur:
-                    # Явно перечисляем поля из rss_feeds
-                    query = """
-                    SELECT 
-                        rf.id, 
-                        rf.url, 
-                        rf.name, 
-                        rf.language, 
-                        rf.source_id, 
+            async with pool.acquire() as conn, conn.cursor() as cur:
+                # Явно перечисляем поля из rss_feeds
+                query = """
+                    SELECT
+                        rf.id,
+                        rf.url,
+                        rf.name,
+                        rf.language,
+                        rf.source_id,
                         rf.category_id,
                         s.name as source_name, -- Получаем имя источника
                         c.name as category_name, -- Получаем имя категории
@@ -53,20 +60,20 @@ class RSSManager:
                     JOIN sources s ON rf.source_id = s.id
                     WHERE rf.is_active = TRUE
                     """
-                    await cur.execute(query)
-                    async for row in cur:
-                        feeds.append(
-                            {
-                                "id": row[0],
-                                "url": row[1].strip(),
-                                "name": row[2],
-                                "lang": row[3],
-                                "source_id": row[4],
-                                "category_id": row[5],
-                                "source": row[6],  # s.name
-                                "category": row[7] if row[7] else "uncategorized"
-                            }
-                        )
+                await cur.execute(query)
+                async for row in cur:
+                    feeds.append(
+                        {
+                            "id": row[0],
+                            "url": row[1].strip(),
+                            "name": row[2],
+                            "lang": row[3],
+                            "source_id": row[4],
+                            "category_id": row[5],
+                            "source": row[6],  # s.name
+                            "category": row[7] if row[7] else "uncategorized"
+                        }
+                    )
             return feeds
         except Exception as e:
             logger.error(f"[DB] [RSSManager] Ошибка получения активных лент: {e}")
@@ -80,29 +87,28 @@ class RSSManager:
         try:
             pool = await self.get_pool()
             feeds = []
-            async with pool.acquire() as conn:
-                async with conn.cursor() as cur:
-                    query = """
+            async with pool.acquire() as conn, conn.cursor() as cur:
+                query = """
                     SELECT rf.*, c.name as category_name, s.name as source_name
                     FROM rss_feeds rf
                     JOIN categories c ON rf.category_id = c.id
                     JOIN sources s ON rf.source_id = s.id
                     WHERE c.name = %s AND rf.is_active = TRUE
                     """
-                    await cur.execute(query, (category_name,))
-                    async for row in cur:
-                        feeds.append(
-                            {
-                                "id": row[0],
-                                "url": row[1].strip(),
-                                "name": row[2],
-                                "lang": row[3],
-                                "source_id": row[4],
-                                "category_id": row[5],
-                                "source": row[6],  # s.name
-                                "category": row[7] if row[7] else "uncategorized",
-                            }
-                        )
+                await cur.execute(query, (category_name,))
+                async for row in cur:
+                    feeds.append(
+                        {
+                            "id": row[0],
+                            "url": row[1].strip(),
+                            "name": row[2],
+                            "lang": row[3],
+                            "source_id": row[4],
+                            "category_id": row[5],
+                            "source": row[6],  # s.name
+                            "category": row[7] if row[7] else "uncategorized",
+                        }
+                    )
             return feeds
         except Exception as e:
             logger.error(f"[DB] [RSSManager] Ошибка получения лент по категории {category_name}: {e}")
@@ -113,29 +119,28 @@ class RSSManager:
         try:
             pool = await self.get_pool()
             feeds = []
-            async with pool.acquire() as conn:
-                async with conn.cursor() as cur:
-                    query = """
+            async with pool.acquire() as conn, conn.cursor() as cur:
+                query = """
                     SELECT rf.*, c.name as category_name, s.name as source_name
                     FROM rss_feeds rf
                     JOIN categories c ON rf.category_id = c.id
                     JOIN sources s ON rf.source_id = s.id
                     WHERE rf.language = %s AND rf.is_active = TRUE
                     """
-                    await cur.execute(query, (lang,))
-                    async for row in cur:
-                        feeds.append(
-                            {
-                                "id": row[0],
-                                "url": row[1].strip(),
-                                "name": row[2],
-                                "lang": row[3],
-                                "source_id": row[4],
-                                "category_id": row[5],
-                                "source": row[6],  # s.name
-                                "category": row[7] if row[7] else "uncategorized",
-                            }
-                        )
+                await cur.execute(query, (lang,))
+                async for row in cur:
+                    feeds.append(
+                        {
+                            "id": row[0],
+                            "url": row[1].strip(),
+                            "name": row[2],
+                            "lang": row[3],
+                            "source_id": row[4],
+                            "category_id": row[5],
+                            "source": row[6],  # s.name
+                            "category": row[7] if row[7] else "uncategorized",
+                        }
+                    )
             return feeds
         except Exception as e:
             logger.error(f"[DB] [RSSManager] Ошибка получения лент по языку {lang}: {e}")
@@ -146,29 +151,28 @@ class RSSManager:
         try:
             pool = await self.get_pool()
             feeds = []
-            async with pool.acquire() as conn:
-                async with conn.cursor() as cur:
-                    query = """
+            async with pool.acquire() as conn, conn.cursor() as cur:
+                query = """
                     SELECT rf.*, c.name as category_name, s.name as source_name
                     FROM rss_feeds rf
                     JOIN categories c ON rf.category_id = c.id
                     JOIN sources s ON rf.source_id = s.id
                     WHERE s.name = %s AND rf.is_active = TRUE
                     """
-                    await cur.execute(query, (source_name,))
-                    async for row in cur:
-                        feeds.append(
-                            {
-                                "id": row[0],
-                                "url": row[1].strip(),
-                                "name": row[2],
-                                "lang": row[3],
-                                "source_id": row[4],
-                                "category_id": row[5],
-                                "source": row[6],  # s.name
-                                "category": row[7] if row[7] else "uncategorized",
-                            }
-                        )
+                await cur.execute(query, (source_name,))
+                async for row in cur:
+                    feeds.append(
+                        {
+                            "id": row[0],
+                            "url": row[1].strip(),
+                            "name": row[2],
+                            "lang": row[3],
+                            "source_id": row[4],
+                            "category_id": row[5],
+                            "source": row[6],  # s.name
+                            "category": row[7] if row[7] else "uncategorized",
+                        }
+                    )
             return feeds
         except Exception as e:
             logger.error(f"[DB] [RSSManager] Ошибка получения лент по источнику {source_name}: {e}")
@@ -335,19 +339,18 @@ class RSSManager:
         """Вспомогательный метод: Получает время последней публикации из конкретной RSS-ленты."""
         try:
             pool = await self.get_pool()
-            async with pool.acquire() as conn:
-                async with conn.cursor() as cur:
-                    query = """
+            async with pool.acquire() as conn, conn.cursor() as cur:
+                query = """
                     SELECT created_at
                     FROM published_news_data
                     WHERE rss_feed_id = %s
                     ORDER BY created_at DESC
                     LIMIT 1
                     """
-                    await cur.execute(query, (rss_feed_id,))
-                    row = await cur.fetchone()
-                    published_time = row[0] if row else None
-                    return published_time
+                await cur.execute(query, (rss_feed_id,))
+                row = await cur.fetchone()
+                published_time = row[0] if row else None
+                return published_time
         except Exception as e:
             logger.error(
                 f"[DB] [RSSManager] Ошибка при получении времени последней публикации из конкретной RSS-ленты: {e}"
@@ -358,16 +361,15 @@ class RSSManager:
         """Вспомогательный метод: Получает количество RSS-элементов из ленты за последние N минут"""
         try:
             pool = await self.get_pool()
-            time_threshold = datetime.now(timezone.utc) - timedelta(minutes=minutes)
-            async with pool.acquire() as conn:
-                async with conn.cursor() as cur:
-                    query = """
+            time_threshold = datetime.now(UTC) - timedelta(minutes=minutes)
+            async with pool.acquire() as conn, conn.cursor() as cur:
+                query = """
                     SELECT COUNT(*) FROM published_news_data
                     WHERE rss_feed_id = %s AND created_at >= %s
                     """
-                    await cur.execute(query, (rss_feed_id, time_threshold))
-                    row = await cur.fetchone()
-                    rss_items_count = row[0] if row else 0
+                await cur.execute(query, (rss_feed_id, time_threshold))
+                row = await cur.fetchone()
+                rss_items_count = row[0] if row else 0
             return rss_items_count
         except Exception as e:
             logger.error(
@@ -376,10 +378,10 @@ class RSSManager:
             return 0
 
     # - ОСНОВНАЯ ЛОГИКА ПАРСИНГА -
-    def generate_news_id(self, title: str, content: str, link: str, feed_id: int) -> str:
+    def generate_news_id(self, title: str, content: str, link: str, _feed_id: int) -> str:
         """Генерирует уникальный ID новости на основе содержания"""
         content_hash = hashlib.sha256(
-            f"{title.strip()}_{content.strip()[:500]}_{link.strip()}".encode("utf-8")
+            f"{title.strip()}_{content.strip()[:500]}_{link.strip()}".encode()
         ).hexdigest()
         return content_hash
 
@@ -530,7 +532,7 @@ class RSSManager:
                 return local_rss_items
 
             if last_published:
-                elapsed = datetime.now(timezone.utc) - last_published
+                elapsed = datetime.now(UTC) - last_published
                 if elapsed < timedelta(minutes=cooldown_minutes):
                     logger.info(
                         f"[SKIP] Лента ID {rss_feed_id} находится на кулдауне ({cooldown_minutes} мин). Прошло: {elapsed}"
@@ -561,7 +563,7 @@ class RSSManager:
                                 feed = await loop.run_in_executor(None, feedparser.parse, raw_content)
                                 if feed.entries:
                                     logger.debug(f"[RSS] [DEBUG] aiohttp помог распарсить {feed_info['url']}")
-                    except asyncio.TimeoutError:
+                    except TimeoutError:
                         logger.debug(f"[RSS] [DEBUG] Таймаут при получении сырого содержимого для {feed_info['url']}")
                     except Exception as fetch_err:  # Еще более общий exception
                         logger.debug(
@@ -659,7 +661,7 @@ class RSSManager:
                                             f"[RSS] [IMG] URL не является изображением (Content-Type: {content_type}). Пропуск."
                                         )
 
-                        except asyncio.TimeoutError:
+                        except TimeoutError:
                             logger.warning(
                                 f"[RSS] [IMG] Таймаут при проверке/скачивании изображения: {image_url_for_processing[:100]}..."
                             )
@@ -1162,7 +1164,7 @@ class RSSManager:
                 async with conn.cursor() as cur:
                     # Получаем необработанные RSS-элементы без переводов
                     query = """
-                    SELECT 
+                    SELECT
                         nd.news_id,
                         nd.original_title,
                         nd.original_content,
@@ -1194,7 +1196,7 @@ class RSSManager:
                     columns = [desc[0] for desc in cur.description]
 
                     for row in results:
-                        row_dict = dict(zip(columns, row))
+                        row_dict = dict(zip(columns, row, strict=False))
                         # Создаем структуру RSS-элемента для бота
                         rss_item = {
                             "news_id": row_dict["news_id"],
@@ -1221,11 +1223,10 @@ class RSSManager:
         """Удаляет дубликаты из базы данных"""
         try:
             pool = await self.get_pool()
-            async with pool.acquire() as conn:
-                async with conn.cursor() as cur:
-                    # Находим группы дубликатов по схожести эмбеддингов
-                    await cur.execute(
-                        """
+            async with pool.acquire() as conn, conn.cursor() as cur:
+                # Находим группы дубликатов по схожести эмбеддингов
+                await cur.execute(
+                    """
                         WITH duplicate_groups AS (
                             SELECT
                                 news_id,
@@ -1240,10 +1241,10 @@ class RSSManager:
                             SELECT news_id FROM duplicate_groups WHERE rn > 1
                         )
                     """
-                    )
+                )
 
-                    deleted_count = cur.rowcount
-                    logger.info(f"[CLEANUP] Удалено {deleted_count} дубликатов")
+                deleted_count = cur.rowcount
+                logger.info(f"[CLEANUP] Удалено {deleted_count} дубликатов")
 
         except Exception as e:
             logger.error(f"[CLEANUP] Ошибка при очистке дубликатов: {e}")

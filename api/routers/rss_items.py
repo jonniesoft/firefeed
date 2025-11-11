@@ -1,11 +1,17 @@
 import logging
-from typing import List, Optional
+
 from fastapi import APIRouter, HTTPException, Query, Request
 
-from api.middleware import limiter
-from api import database, models
-from api.deps import format_datetime, get_full_image_url, build_translations_dict, validate_rss_items_query_params, sanitize_search_phrase
 import config
+from api import database, models
+from api.deps import (
+    build_translations_dict,
+    format_datetime,
+    get_full_image_url,
+    sanitize_search_phrase,
+    validate_rss_items_query_params,
+)
+from api.middleware import limiter
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +27,7 @@ router = APIRouter(
 def process_rss_items_results(results, columns, display_language, original_language, include_all_translations):
     rss_items_list = []
     for row in results:
-        row_dict = dict(zip(columns, row))
+        row_dict = dict(zip(columns, row, strict=False))
         translations = build_translations_dict(row_dict)
         if display_language is not None and original_language and display_language != original_language:
             if not translations or display_language not in translations:
@@ -106,19 +112,19 @@ def process_rss_items_results(results, columns, display_language, original_langu
 )
 @limiter.limit("1000/minute")
 async def get_rss_items(
-    request: Request,
-    display_language: Optional[str] = Query(None),
-    original_language: Optional[str] = Query(None),
-    category_id: Optional[List[int]] = Query(None),
-    source_id: Optional[List[int]] = Query(None),
-    telegram_published: Optional[bool] = Query(None),
-    from_date: Optional[int] = Query(None),
-    search_phrase: Optional[str] = Query(None, alias="searchPhrase"),
-    include_all_translations: Optional[bool] = Query(None),
-    cursor_published_at: Optional[int] = Query(None),
-    cursor_rss_item_id: Optional[str] = Query(None),
-    limit: Optional[int] = Query(50, le=100, gt=0),
-    offset: Optional[int] = Query(0, ge=0),
+    _request: Request,
+    display_language: str | None = Query(None),
+    original_language: str | None = Query(None),
+    category_id: list[int] | None = Query(None),
+    source_id: list[int] | None = Query(None),
+    telegram_published: bool | None = Query(None),
+    from_date: int | None = Query(None),
+    search_phrase: str | None = Query(None, alias="searchPhrase"),
+    _include_all_translations: bool | None = Query(None),
+    cursor_published_at: int | None = Query(None),
+    cursor_rss_item_id: str | None = Query(None),
+    limit: int | None = Query(50, le=100, gt=0),
+    offset: int | None = Query(0, ge=0),
 ):
     if display_language is None:
         include_all_translations = True
@@ -186,7 +192,7 @@ async def get_rss_items(
     }
 )
 @limiter.limit("300/minute")
-async def get_rss_item_by_id(request: Request, rss_item_id: str):
+async def get_rss_item_by_id(__request: Request, rss_item_id: str):
     pool = await database.get_db_pool()
     if pool is None:
         raise HTTPException(status_code=500, detail="Ошибка подключения к базе данных")
@@ -196,7 +202,7 @@ async def get_rss_item_by_id(request: Request, rss_item_id: str):
         if not full_result or not full_result[0]:
             raise HTTPException(status_code=404, detail="News item not found")
         row, columns = full_result
-        row_dict = dict(zip(columns, row))
+        row_dict = dict(zip(columns, row, strict=False))
         item_data = {
             "news_id": row_dict["news_id"],
             "original_title": row_dict["original_title"],
@@ -253,10 +259,10 @@ async def get_rss_item_by_id(request: Request, rss_item_id: str):
 )
 @limiter.limit("300/minute")
 async def get_categories(
-    request: Request,
-    limit: Optional[int] = Query(100, le=1000, gt=0),
-    offset: Optional[int] = Query(0, ge=0),
-    source_ids: Optional[List[int]] = Query(None),
+    _request: Request,
+    limit: int | None = Query(100, le=1000, gt=0),
+    offset: int | None = Query(0, ge=0),
+    source_ids: list[int] | None = Query(None),
 ):
     pool = await database.get_db_pool()
     if pool is None:
@@ -314,10 +320,10 @@ async def get_categories(
 )
 @limiter.limit("300/minute")
 async def get_sources(
-    request: Request,
-    limit: Optional[int] = Query(100, le=1000, gt=0),
-    offset: Optional[int] = Query(0, ge=0),
-    category_id: Optional[List[int]] = Query(None),
+    _request: Request,
+    limit: int | None = Query(100, le=1000, gt=0),
+    offset: int | None = Query(0, ge=0),
+    category_id: list[int] | None = Query(None),
 ):
     pool = await database.get_db_pool()
     if pool is None:
@@ -365,7 +371,7 @@ async def get_sources(
     }
 )
 @limiter.limit("300/minute")
-async def get_languages(request: Request):
+async def get_languages(__request: Request):
     return {"results": config.SUPPORTED_LANGUAGES}
 
 
@@ -422,7 +428,7 @@ async def get_languages(request: Request):
     }
 )
 @limiter.limit("300/minute")
-async def health_check(request: Request):
+async def health_check(__request: Request):
     try:
         pool = await database.get_db_pool()
         if pool:

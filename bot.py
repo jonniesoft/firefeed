@@ -5,19 +5,38 @@ import os
 import re
 import sys
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any
 
 import aiohttp
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
-from telegram.error import NetworkError, BadRequest, RetryAfter
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters
+from telegram import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    KeyboardButton,
+    ReplyKeyboardMarkup,
+    Update,
+)
+from telegram.error import BadRequest, NetworkError, RetryAfter
+from telegram.ext import (
+    Application,
+    CallbackQueryHandler,
+    CommandHandler,
+    ContextTypes,
+    MessageHandler,
+    filters,
+)
 from tenacity import retry, stop_after_attempt, wait_exponential
-from utils.text import TextProcessor
 
-from config import WEBHOOK_CONFIG, BOT_TOKEN, CHANNEL_IDS, CHANNEL_CATEGORIES, get_shared_db_pool
-from firefeed_translations import get_message, LANG_NAMES, TRANSLATED_FROM_LABELS, READ_MORE_LABELS, SOURCE_LABELS
+from config import BOT_TOKEN, CHANNEL_CATEGORIES, CHANNEL_IDS, WEBHOOK_CONFIG, get_shared_db_pool
+from firefeed_translations import (
+    LANG_NAMES,
+    READ_MORE_LABELS,
+    SOURCE_LABELS,
+    TRANSLATED_FROM_LABELS,
+    get_message,
+)
 from logging_config import setup_logging
 from user_manager import UserManager
+from utils.text import TextProcessor
 
 # Настройка логирования
 setup_logging()
@@ -41,9 +60,9 @@ http_session = None  # Глобальная сессия для HTTP-запро�
 class PreparedRSSItem:
     """Структура для хранения подготовленного RSS-элемента."""
 
-    original_data: Dict[str, Any]
-    translations: Dict[str, Dict[str, str]]
-    image_filename: Optional[str]
+    original_data: dict[str, Any]
+    translations: dict[str, dict[str, str]]
+    image_filename: str | None
 
 
 # --- Функции для работы с БД ---
@@ -99,15 +118,14 @@ async def get_translation_id(news_id: str, language: str) -> int:
     """Получает ID перевода из таблицы news_translations."""
     try:
         db_pool = await get_shared_db_pool()
-        async with db_pool.acquire() as connection:
-            async with connection.cursor() as cursor:
-                query = """
+        async with db_pool.acquire() as connection, connection.cursor() as cursor:
+            query = """
                     SELECT id FROM news_translations
                     WHERE news_id = %s AND language = %s
                 """
-                await cursor.execute(query, (news_id, language))
-                result = await cursor.fetchone()
-                return result[0] if result else None
+            await cursor.execute(query, (news_id, language))
+            result = await cursor.fetchone()
+            return result[0] if result else None
     except Exception as e:
         logger.error(f"Ошибка при получении ID перевода для {news_id} на {language}: {e}")
         return None
@@ -143,7 +161,7 @@ async def api_get(endpoint: str, params: dict = None) -> dict:
                 error_text = await response.text()
                 logger.error(f"Error response body: {error_text}")
                 return {}
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.error(f"Timeout error calling {endpoint}")
         return {}
     except Exception as e:
@@ -517,7 +535,7 @@ async def send_personal_rss_items(bot, prepared_rss_item: PreparedRSSItem):
                 title_to_send = prepared_rss_item.original_data["title"]
                 content_to_send = prepared_rss_item.original_data.get("content", "")
             # Иначе ищем перевод на язык пользователя
-            elif user_lang in translations_cache and translations_cache[user_lang]:
+            elif translations_cache.get(user_lang):
                 translation_data = translations_cache[user_lang]
                 title_to_send = translation_data.get("title", "")
                 content_to_send = translation_data.get("content", "")
@@ -615,7 +633,7 @@ async def post_to_channel(bot, prepared_rss_item: PreparedRSSItem):
                 content = TextProcessor.clean(original_content)
                 lang_note = ""
                 translation_id = None  # Для оригинального языка нет перевода
-            elif target_lang in translations_cache and translations_cache[target_lang]:
+            elif translations_cache.get(target_lang):
                 # Есть перевод
                 translation_data = translations_cache[target_lang]
                 title = TextProcessor.clean(translation_data.get("title", original_title))
@@ -800,7 +818,7 @@ async def monitor_rss_items_task(context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             logger.error(f"Ошибка при обработке партии RSS-элементов: {e}")
 
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.error("Таймаут получения RSS-элементов")
     except Exception as e:
         logger.error(f"Ошибка в задаче мониторинга: {e}")

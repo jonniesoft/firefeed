@@ -1,12 +1,13 @@
 # database.py
+import logging
 import os
 import sys
-import logging
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from datetime import UTC, datetime
+from typing import Any
+
 import config
-from datetime import datetime, timezone
-from typing import Optional, Dict, Any, Set, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,7 @@ async def close_db_pool():
 # --- Функции для работы с пользователями ---
 
 
-async def create_user(pool, email: str, password_hash: str, language: str) -> Optional[Dict[str, Any]]:
+async def create_user(pool, email: str, password_hash: str, language: str) -> dict[str, Any] | None:
     """Создает нового пользователя"""
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
@@ -43,134 +44,128 @@ async def create_user(pool, email: str, password_hash: str, language: str) -> Op
                 VALUES (%s, %s, %s, %s, %s, %s)
                 RETURNING id, email, language, is_active, created_at, updated_at
                 """
-                now = datetime.now(timezone.utc)
+                now = datetime.now(UTC)
                 await cur.execute(query, (email, password_hash, language, False, now, now))
                 result = await cur.fetchone()
                 if result:
                     columns = [desc[0] for desc in cur.description]
-                    return dict(zip(columns, result))
+                    return dict(zip(columns, result, strict=False))
                 return None
             except Exception as e:
                 logger.info(f"[DB] Error creating user: {e}")
                 return None
 
 
-async def get_user_by_email(pool, email: str) -> Optional[Dict[str, Any]]:
+async def get_user_by_email(pool, email: str) -> dict[str, Any] | None:
     """Получает пользователя по email"""
-    async with pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            try:
-                query = """
+    async with pool.acquire() as conn, conn.cursor() as cur:
+        try:
+            query = """
                 SELECT id, email, password_hash, language, is_active, created_at, updated_at
                 FROM users WHERE email = %s
                 """
-                await cur.execute(query, (email,))
-                result = await cur.fetchone()
-                if result:
-                    columns = [desc[0] for desc in cur.description]
-                    return dict(zip(columns, result))
-                return None
-            except Exception as e:
-                logger.info(f"[DB] Error getting user by email: {e}")
-                return None
+            await cur.execute(query, (email,))
+            result = await cur.fetchone()
+            if result:
+                columns = [desc[0] for desc in cur.description]
+                return dict(zip(columns, result, strict=False))
+            return None
+        except Exception as e:
+            logger.info(f"[DB] Error getting user by email: {e}")
+            return None
 
 
-async def get_user_by_id(pool, user_id: int) -> Optional[Dict[str, Any]]:
+async def get_user_by_id(pool, user_id: int) -> dict[str, Any] | None:
     """Получает пользователя по ID"""
-    async with pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            try:
-                query = """
+    async with pool.acquire() as conn, conn.cursor() as cur:
+        try:
+            query = """
                 SELECT id, email, password_hash, language, is_active, created_at, updated_at
                 FROM users WHERE id = %s
                 """
-                await cur.execute(query, (user_id,))
-                result = await cur.fetchone()
-                if result:
-                    columns = [desc[0] for desc in cur.description]
-                    return dict(zip(columns, result))
-                return None
-            except Exception as e:
-                logger.info(f"[DB] Error getting user by id: {e}")
-                return None
+            await cur.execute(query, (user_id,))
+            result = await cur.fetchone()
+            if result:
+                columns = [desc[0] for desc in cur.description]
+                return dict(zip(columns, result, strict=False))
+            return None
+        except Exception as e:
+            logger.info(f"[DB] Error getting user by id: {e}")
+            return None
 
 
-async def update_user(pool, user_id: int, update_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+async def update_user(pool, user_id: int, update_data: dict[str, Any]) -> dict[str, Any] | None:
     """Обновляет данные пользователя"""
     if not update_data:
         return await get_user_by_id(pool, user_id)
 
-    async with pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            try:
-                set_parts: list[Any] = []
-                params: list[Any] = []
-                for key, value in update_data.items():
-                    set_parts.append(f"{key} = %s")
-                    params.append(value)
-                params.append(user_id)
+    async with pool.acquire() as conn, conn.cursor() as cur:
+        try:
+            set_parts: list[Any] = []
+            params: list[Any] = []
+            for key, value in update_data.items():
+                set_parts.append(f"{key} = %s")
+                params.append(value)
+            params.append(user_id)
 
-                query = f"""
+            query = f"""
                 UPDATE users
                 SET {', '.join(set_parts)}, updated_at = %s
                 WHERE id = %s
                 RETURNING id, email, password_hash, language, is_active, created_at, updated_at
                 """
-                params.append(datetime.now(timezone.utc))  # updated_at
-                await cur.execute(query, params)
-                result = await cur.fetchone()
-                if result:
-                    columns = [desc[0] for desc in cur.description]
-                    return dict(zip(columns, result))
-                return None
-            except Exception as e:
-                logger.info(f"[DB] Error updating user: {e}")
-                return None
+            params.append(datetime.now(UTC))  # updated_at
+            await cur.execute(query, params)
+            result = await cur.fetchone()
+            if result:
+                columns = [desc[0] for desc in cur.description]
+                return dict(zip(columns, result, strict=False))
+            return None
+        except Exception as e:
+            logger.info(f"[DB] Error updating user: {e}")
+            return None
 
 
 async def delete_user(pool, user_id: int) -> bool:
     """Деактивирует (удаляет) пользователя"""
-    async with pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            try:
-                # Вместо физического удаления деактивируем
-                query = "UPDATE users SET is_active = FALSE, updated_at = %s WHERE id = %s"
-                await cur.execute(query, (datetime.now(timezone.utc), user_id))
-                # Проверяем, была ли затронута строка
-                if cur.rowcount > 0:
-                    return True
-                return False
-            except Exception as e:
-                logger.info(f"[DB] Error deleting user: {e}")
-                return False
+    async with pool.acquire() as conn, conn.cursor() as cur:
+        try:
+            # Вместо физического удаления деактивируем
+            query = "UPDATE users SET is_active = FALSE, updated_at = %s WHERE id = %s"
+            await cur.execute(query, (datetime.now(UTC), user_id))
+            # Проверяем, была ли затронута строка
+            if cur.rowcount > 0:
+                return True
+            return False
+        except Exception as e:
+            logger.info(f"[DB] Error deleting user: {e}")
+            return False
 
 
 async def activate_user(pool, user_id: int) -> bool:
     """Активирует пользователя"""
-    async with pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            try:
-                query = "UPDATE users SET is_active = TRUE, updated_at = %s WHERE id = %s"
-                await cur.execute(query, (datetime.now(timezone.utc), user_id))
-                if cur.rowcount > 0:
-                    return True
-                return False
-            except Exception as e:
-                logger.info(f"[DB] Error activating user: {e}")
-                return False
+    async with pool.acquire() as conn, conn.cursor() as cur:
+        try:
+            query = "UPDATE users SET is_active = TRUE, updated_at = %s WHERE id = %s"
+            await cur.execute(query, (datetime.now(UTC), user_id))
+            if cur.rowcount > 0:
+                return True
+            return False
+        except Exception as e:
+            logger.info(f"[DB] Error activating user: {e}")
+            return False
 
 
 async def update_user_password(pool, user_id: int, new_hashed_password: str) -> bool:
     """Обновляет пароль пользователя"""
-    async with pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            try:
-                query = "UPDATE users SET password_hash = %s, updated_at = %s WHERE id = %s"
-                await cur.execute(query, (new_hashed_password, datetime.now(timezone.utc), user_id))
-                return cur.rowcount > 0
-            except Exception as e:
-                logger.error(f"[DB] Error updating user password: {e}")
-                return False
+    async with pool.acquire() as conn, conn.cursor() as cur:
+        try:
+            query = "UPDATE users SET password_hash = %s, updated_at = %s WHERE id = %s"
+            await cur.execute(query, (new_hashed_password, datetime.now(UTC), user_id))
+            return cur.rowcount > 0
+        except Exception as e:
+            logger.error(f"[DB] Error updating user password: {e}")
+            return False
 
 
 # --- Функции для работы с кодами верификации ---
@@ -180,29 +175,27 @@ async def save_verification_code(pool, user_id: int, verification_code: str, exp
     """Сохраняет код верификации для пользователя согласно схеме user_verification_codes.
     Поля: (user_id, verification_code, created_at DEFAULT now(), expires_at, used_at NULL)
     """
-    async with pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            try:
-                # Удаляем старые коды для этого пользователя (необязательная очистка)
-                await cur.execute("DELETE FROM user_verification_codes WHERE user_id = %s", (user_id,))
-                # Вставляем новый код
-                query = """
+    async with pool.acquire() as conn, conn.cursor() as cur:
+        try:
+            # Удаляем старые коды для этого пользователя (необязательная очистка)
+            await cur.execute("DELETE FROM user_verification_codes WHERE user_id = %s", (user_id,))
+            # Вставляем новый код
+            query = """
                 INSERT INTO user_verification_codes (user_id, verification_code, expires_at)
                 VALUES (%s, %s, %s)
                 """
-                await cur.execute(query, (user_id, verification_code, expires_at))
-                return True
-            except Exception as e:
-                logger.error(f"[DB] Error saving verification code: {e}")
-                return False
+            await cur.execute(query, (user_id, verification_code, expires_at))
+            return True
+        except Exception as e:
+            logger.error(f"[DB] Error saving verification code: {e}")
+            return False
 
 
-async def verify_user_email(pool, email: str, verification_code: str) -> Optional[int]:
+async def verify_user_email(pool, email: str, verification_code: str) -> int | None:
     """Проверяет код верификации и возвращает user_id, если код действителен."""
-    async with pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            try:
-                query = """
+    async with pool.acquire() as conn, conn.cursor() as cur:
+        try:
+            query = """
                 SELECT uvc.user_id
                 FROM user_verification_codes uvc
                 JOIN users u ON uvc.user_id = u.id
@@ -211,17 +204,17 @@ async def verify_user_email(pool, email: str, verification_code: str) -> Optiona
                   AND uvc.used_at IS NULL
                   AND uvc.expires_at > %s
                 """
-                await cur.execute(query, (email, verification_code, datetime.now(timezone.utc)))
-                result = await cur.fetchone()
-                if result:
-                    return result[0]
-                return None
-            except Exception as e:
-                logger.error(f"[DB] Error verifying user email: {e}")
-                return None
+            await cur.execute(query, (email, verification_code, datetime.now(UTC)))
+            result = await cur.fetchone()
+            if result:
+                return result[0]
+            return None
+        except Exception as e:
+            logger.error(f"[DB] Error verifying user email: {e}")
+            return None
 
 
-async def get_active_verification_code(pool, user_id: int, verification_code: str) -> Optional[dict]:
+async def get_active_verification_code(pool, user_id: int, verification_code: str) -> dict | None:
     """Возвращает активный (неиспользованный и неистекший) код верификации пользователя."""
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
@@ -238,7 +231,7 @@ async def get_active_verification_code(pool, user_id: int, verification_code: st
                 row = await cur.fetchone()
                 if row:
                     cols = [d[0] for d in cur.description]
-                    return dict(zip(cols, row))
+                    return dict(zip(cols, row, strict=False))
                 return None
             except Exception as e:
                 logger.error(f"[DB] Error getting active verification code: {e}")
@@ -261,58 +254,55 @@ async def mark_verification_code_used(pool, code_id: int) -> bool:
 
 async def save_password_reset_token(pool, user_id: int, token: str, expires_at: datetime) -> bool:
     """Сохраняет токен сброса пароля"""
-    async with pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            try:
-                # Удаляем старые токены для этого пользователя
-                await cur.execute("DELETE FROM password_reset_tokens WHERE user_id = %s", (user_id,))
-                # Вставляем новый токен
-                query = """
+    async with pool.acquire() as conn, conn.cursor() as cur:
+        try:
+            # Удаляем старые токены для этого пользователя
+            await cur.execute("DELETE FROM password_reset_tokens WHERE user_id = %s", (user_id,))
+            # Вставляем новый токен
+            query = """
                 INSERT INTO password_reset_tokens (user_id, token, expires_at, created_at)
                 VALUES (%s, %s, %s, %s)
                 """
-                await cur.execute(query, (user_id, token, expires_at, datetime.now(timezone.utc)))
-                return True
-            except Exception as e:
-                logger.info(f"[DB] Error saving password reset token: {e}")
-                return False
+            await cur.execute(query, (user_id, token, expires_at, datetime.now(UTC)))
+            return True
+        except Exception as e:
+            logger.info(f"[DB] Error saving password reset token: {e}")
+            return False
 
 
-async def get_password_reset_token(pool, token: str) -> Optional[Dict[str, Any]]:
+async def get_password_reset_token(pool, token: str) -> dict[str, Any] | None:
     """Получает данные токена сброса пароля, если токен действителен"""
-    async with pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            try:
-                query = """
+    async with pool.acquire() as conn, conn.cursor() as cur:
+        try:
+            query = """
                 SELECT user_id, expires_at FROM password_reset_tokens
                 WHERE token = %s AND expires_at > %s
                 """
-                await cur.execute(query, (token, datetime.now(timezone.utc)))
-                result = await cur.fetchone()
-                if result:
-                    return {"user_id": result[0], "expires_at": result[1]}
-                return None
-            except Exception as e:
-                logger.info(f"[DB] Error getting password reset token: {e}")
-                return None
+            await cur.execute(query, (token, datetime.now(UTC)))
+            result = await cur.fetchone()
+            if result:
+                return {"user_id": result[0], "expires_at": result[1]}
+            return None
+        except Exception as e:
+            logger.info(f"[DB] Error getting password reset token: {e}")
+            return None
 
 
 async def delete_password_reset_token(pool, token: str) -> bool:
     """Удаляет использованный токен сброса пароля"""
-    async with pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            try:
-                await cur.execute("DELETE FROM password_reset_tokens WHERE token = %s", (token,))
-                return True
-            except Exception as e:
-                logger.error(f"[DB] Error deleting password reset token: {e}")
-                return False
+    async with pool.acquire() as conn, conn.cursor() as cur:
+        try:
+            await cur.execute("DELETE FROM password_reset_tokens WHERE token = %s", (token,))
+            return True
+        except Exception as e:
+            logger.error(f"[DB] Error deleting password reset token: {e}")
+            return False
 
 
 # --- Функции для работы с пользовательскими категориями ---
 
 
-async def update_user_categories(pool, user_id: int, category_ids: Set[int]) -> bool:
+async def update_user_categories(pool, user_id: int, category_ids: set[int]) -> bool:
     """Обновляет список категорий пользователя"""
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
@@ -339,19 +329,18 @@ async def update_user_categories(pool, user_id: int, category_ids: Set[int]) -> 
                 return False
 
 
-async def get_all_category_ids(pool) -> Set[int]:
+async def get_all_category_ids(pool) -> set[int]:
     """Возвращает множество всех id категорий."""
-    async with pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            try:
-                await cur.execute("SELECT id FROM categories")
-                rows = await cur.fetchall()
-                return {row[0] for row in rows}
-            except Exception as e:
-                logger.error(f"[DB] Error fetching category ids: {e}")
-                return set()
+    async with pool.acquire() as conn, conn.cursor() as cur:
+        try:
+            await cur.execute("SELECT id FROM categories")
+            rows = await cur.fetchall()
+            return {row[0] for row in rows}
+        except Exception as e:
+            logger.error(f"[DB] Error fetching category ids: {e}")
+            return set()
 
-async def get_user_categories(pool, user_id: int, source_ids: Optional[list[int]] = None) -> list[Dict[str, Any]]:
+async def get_user_categories(pool, user_id: int, source_ids: list[int] | None = None) -> list[dict[str, Any]]:
     """Получает список категорий пользователя с фильтрацией по source_id"""
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
@@ -384,7 +373,7 @@ async def get_user_categories(pool, user_id: int, source_ids: Optional[list[int]
 
 async def create_user_rss_feed(
     pool, user_id: int, url: str, name: str, category_id: int, language: str
-) -> Optional[Dict[str, Any]]:
+) -> dict[str, Any] | None:
     """Создает пользовательскую RSS-ленту"""
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
@@ -394,19 +383,19 @@ async def create_user_rss_feed(
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
                 RETURNING id, user_id, url, name, category_id, language, is_active, created_at, updated_at
                 """
-                now = datetime.now(timezone.utc)
+                now = datetime.now(UTC)
                 await cur.execute(query, (user_id, url, name, category_id, language, True, now, now))
                 result = await cur.fetchone()
                 if result:
                     columns = [desc[0] for desc in cur.description]
-                    return dict(zip(columns, result))
+                    return dict(zip(columns, result, strict=False))
                 return None
             except Exception as e:
                 logger.info(f"[DB] Error creating user RSS feed: {e}")
                 return None
 
 
-async def get_user_rss_feeds(pool, user_id: int, limit: int, offset: int) -> list[Dict[str, Any]]:
+async def get_user_rss_feeds(pool, user_id: int, limit: int, offset: int) -> list[dict[str, Any]]:
     """Получает список RSS-лент пользователя"""
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
@@ -422,14 +411,14 @@ async def get_user_rss_feeds(pool, user_id: int, limit: int, offset: int) -> lis
                 results = []
                 async for row in cur:
                     columns = [desc[0] for desc in cur.description]
-                    results.append(dict(zip(columns, row)))
+                    results.append(dict(zip(columns, row, strict=False)))
                 return results
             except Exception as e:
                 logger.info(f"[DB] Error getting user RSS feeds: {e}")
                 return []
 
 
-async def get_user_rss_feed_by_id(pool, user_id: int, feed_id: int) -> Optional[Dict[str, Any]]:
+async def get_user_rss_feed_by_id(pool, user_id: int, feed_id: int) -> dict[str, Any] | None:
     """Получает конкретную RSS-ленту пользователя"""
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
@@ -443,7 +432,7 @@ async def get_user_rss_feed_by_id(pool, user_id: int, feed_id: int) -> Optional[
                 result = await cur.fetchone()
                 if result:
                     columns = [desc[0] for desc in cur.description]
-                    return dict(zip(columns, result))
+                    return dict(zip(columns, result, strict=False))
                 return None
             except Exception as e:
                 logger.info(f"[DB] Error getting user RSS feed by ID: {e}")
@@ -451,8 +440,8 @@ async def get_user_rss_feed_by_id(pool, user_id: int, feed_id: int) -> Optional[
 
 
 async def update_user_rss_feed(
-    pool, user_id: int, feed_id: int, update_data: Dict[str, Any]
-) -> Optional[Dict[str, Any]]:
+    pool, user_id: int, feed_id: int, update_data: dict[str, Any]
+) -> dict[str, Any] | None:
     """Обновляет пользовательскую RSS-ленту"""
     if not update_data:
         return await get_user_rss_feed_by_id(pool, user_id, feed_id)
@@ -474,12 +463,12 @@ async def update_user_rss_feed(
                 WHERE user_id = %s AND id = %s
                 RETURNING id, user_id, url, name, category_id, language, is_active, created_at, updated_at
                 """
-                params.append(datetime.now(timezone.utc))  # updated_at
+                params.append(datetime.now(UTC))  # updated_at
                 await cur.execute(query, params)
                 result = await cur.fetchone()
                 if result:
                     columns = [desc[0] for desc in cur.description]
-                    return dict(zip(columns, result))
+                    return dict(zip(columns, result, strict=False))
                 return None
             except Exception as e:
                 logger.info(f"[DB] Error updating user RSS feed: {e}")
@@ -505,8 +494,8 @@ async def delete_user_rss_feed(pool, user_id: int, feed_id: int) -> bool:
 
 
 async def get_user_rss_items_list(
-    pool, user_id: int, display_language: str, original_language: Optional[str], limit: int, offset: int
-) -> Tuple[int, list[Tuple], list[str]]:
+    pool, user_id: int, display_language: str, original_language: str | None, limit: int, offset: int
+) -> tuple[int, list[tuple], list[str]]:
     """
     Получает список RSS-элементов для текущего пользователя на основе его подписок.
     Возвращает кортеж (total_count, results_rows, column_names).
@@ -615,8 +604,8 @@ async def get_user_rss_items_list(
 
 
 async def get_user_rss_items_list_by_feed(
-    pool, user_id: int, feed_id: int, display_language: str, original_language: Optional[str], limit: int, offset: int
-) -> Tuple[int, list[Tuple], list[str]]:
+    pool, user_id: int, feed_id: int, display_language: str, original_language: str | None, limit: int, offset: int
+) -> tuple[int, list[tuple], list[str]]:
     """
     Получает список RSS-элементов из конкретной пользовательской RSS-ленты текущего пользователя.
     Возвращает кортеж (total_count, results_rows, column_names).
@@ -717,7 +706,7 @@ async def get_user_rss_items_list_by_feed(
 
 
 # --- Перенесено: функция get_rss_item_by_id ---
-async def get_rss_item_by_id(pool, news_id: str) -> Optional[Tuple]:
+async def get_rss_item_by_id(pool, news_id: str) -> tuple | None:
     """Получает RSS-элемент по её ID."""
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
@@ -760,7 +749,7 @@ async def get_rss_item_by_id(pool, news_id: str) -> Optional[Tuple]:
 
 
 # --- Добавлено: обертка для get_rss_item_by_id, возвращающая row и columns ---
-async def get_rss_item_by_id_full(pool, news_id: str) -> Tuple[Optional[Tuple], list[str]]:
+async def get_rss_item_by_id_full(pool, news_id: str) -> tuple[tuple | None, list[str]]:
     """Получает RSS-элемент по её ID, возвращая кортеж (row, columns)."""
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
@@ -803,18 +792,18 @@ async def get_rss_item_by_id_full(pool, news_id: str) -> Tuple[Optional[Tuple], 
 async def get_all_rss_items_list(
     pool,
     display_language: str,
-    original_language: Optional[str],
-    category_id: Optional[list[int]],
-    source_id: Optional[list[int]],
-    telegram_published: Optional[bool],
-    from_date: Optional[datetime],
-    search_phrase: Optional[str],
+    original_language: str | None,
+    category_id: list[int] | None,
+    source_id: list[int] | None,
+    telegram_published: bool | None,
+    from_date: datetime | None,
+    search_phrase: str | None,
     include_all_translations: bool,
-    before_published_at: Optional[datetime],
-    cursor_news_id: Optional[str],
+    before_published_at: datetime | None,
+    cursor_news_id: str | None,
     limit: int,
     offset: int,
-) -> Tuple[int, list[Tuple], list[str]]:
+) -> tuple[int, list[tuple], list[str]]:
     """
     Получает список всех RSS-элементов с фильтрацией.
     По умолчанию джоинит только переводы nt_display (display_language). При include_all_translations=True
@@ -1008,8 +997,8 @@ async def get_all_rss_items_list(
 
 
 async def get_all_categories_list(
-    pool, limit: int, offset: int, source_ids: Optional[list[int]] = None
-) -> Tuple[int, list[Dict[str, Any]]]:
+    pool, limit: int, offset: int, source_ids: list[int] | None = None
+) -> tuple[int, list[dict[str, Any]]]:
     """
     Получает список всех категорий с пагинацией и фильтрацией по source_id.
     Возвращает кортеж (total_count, results).
@@ -1090,44 +1079,43 @@ async def activate_user_and_use_verification_code(pool, user_id: int, verificati
 
 async def confirm_password_reset_transaction(pool, token: str, new_password_hash: str) -> bool:
     """В одной транзакции проверяет валидность reset-токена, обновляет пароль и удаляет токен."""
-    async with pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            try:
-                await cur.execute("BEGIN")
-                await cur.execute(
-                    """
+    async with pool.acquire() as conn, conn.cursor() as cur:
+        try:
+            await cur.execute("BEGIN")
+            await cur.execute(
+                """
                     SELECT user_id, expires_at FROM password_reset_tokens
                     WHERE token = %s AND expires_at > %s AND used_at IS NULL
                     FOR UPDATE
                     """,
-                    (token, datetime.now(timezone.utc)),
-                )
-                token_record = await cur.fetchone()
-                if not token_record:
-                    await cur.execute("ROLLBACK")
-                    return False
-                user_id, expires_at = token_record
-                if expires_at < datetime.now(timezone.utc):
-                    await cur.execute("ROLLBACK")
-                    return False
-                await cur.execute(
-                    "UPDATE users SET password_hash = %s, updated_at = %s WHERE id = %s",
-                    (new_password_hash, datetime.now(timezone.utc), user_id),
-                )
-                await cur.execute("DELETE FROM password_reset_tokens WHERE token = %s", (token,))
-                if cur.rowcount == 0:
-                    await cur.execute("ROLLBACK")
-                    return False
-                await cur.execute("COMMIT")
-                return True
-            except Exception as e:
+                (token, datetime.now(UTC)),
+            )
+            token_record = await cur.fetchone()
+            if not token_record:
                 await cur.execute("ROLLBACK")
-                logger.error(f"[DB] Error confirming password reset: {e}")
                 return False
+            user_id, expires_at = token_record
+            if expires_at < datetime.now(UTC):
+                await cur.execute("ROLLBACK")
+                return False
+            await cur.execute(
+                "UPDATE users SET password_hash = %s, updated_at = %s WHERE id = %s",
+                (new_password_hash, datetime.now(UTC), user_id),
+            )
+            await cur.execute("DELETE FROM password_reset_tokens WHERE token = %s", (token,))
+            if cur.rowcount == 0:
+                await cur.execute("ROLLBACK")
+                return False
+            await cur.execute("COMMIT")
+            return True
+        except Exception as e:
+            await cur.execute("ROLLBACK")
+            logger.error(f"[DB] Error confirming password reset: {e}")
+            return False
 
 async def get_all_sources_list(
-    pool, limit: int, offset: int, category_id: Optional[list[int]] = None
-) -> Tuple[int, list[Dict[str, Any]]]:
+    pool, limit: int, offset: int, category_id: list[int] | None = None
+) -> tuple[int, list[dict[str, Any]]]:
     """
     Получает список всех источников с пагинацией и опциональной фильтрацией по категориям.
     Возвращает кортеж (total_count, results).
@@ -1185,7 +1173,7 @@ async def get_all_sources_list(
                 raise
 
 
-async def get_recent_rss_items_for_broadcast(pool, last_check_time: datetime) -> list[Dict[str, Any]]:
+async def get_recent_rss_items_for_broadcast(pool, last_check_time: datetime) -> list[dict[str, Any]]:
     """
     Получает список последних RSS-элементов для отправки по WebSocket.
     """
@@ -1229,7 +1217,7 @@ async def get_recent_rss_items_for_broadcast(pool, last_check_time: datetime) ->
                 columns = [desc[0] for desc in cur.description]
                 rss_items_payload = []
                 for row in results:
-                    row_dict = dict(zip(columns, row))
+                    row_dict = dict(zip(columns, row, strict=False))
                     rss_items_payload.append(
                         {
                             "news_id": row_dict["news_id"],

@@ -1,7 +1,7 @@
 import asyncio
-import sys
-import os
 import logging
+import os
+import sys
 import traceback
 
 # Добавляем корень проекта в путь поиска модулей

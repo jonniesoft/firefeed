@@ -1,7 +1,8 @@
 import json
 import logging
-from datetime import datetime, timedelta, timezone
-from typing import Optional, Dict, Any
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
 from utils.database import DatabaseMixin, db_operation
 
 logger = logging.getLogger(__name__)
@@ -62,8 +63,8 @@ class UserManager(DatabaseMixin):
                             "dummy_hash",
                             language,
                             True,
-                            datetime.now(timezone.utc),
-                            datetime.now(timezone.utc),
+                            datetime.now(UTC),
+                            datetime.now(UTC),
                         ),
                     )
 
@@ -85,18 +86,17 @@ class UserManager(DatabaseMixin):
     @db_operation
     async def _set_user_language(self, pool, user_id, lang_code):
         """Асинхронный метод: Устанавливает язык пользователя."""
-        async with pool.acquire() as conn:
-            async with conn.cursor() as cur:
-                await cur.execute(
-                    """
+        async with pool.acquire() as conn, conn.cursor() as cur:
+            await cur.execute(
+                """
                     INSERT INTO user_preferences (user_id, language)
                     VALUES (%s, %s)
                     ON CONFLICT (user_id) DO UPDATE SET language = EXCLUDED.language
                 """,
-                    (user_id, lang_code),
-                )
+                (user_id, lang_code),
+            )
 
-                return True
+            return True
 
     @db_operation
     async def _get_subscribers_for_category(self, pool, category):
@@ -130,13 +130,12 @@ class UserManager(DatabaseMixin):
     @db_operation
     async def _get_all_users(self, pool):
         """Асинхронный метод: Получаем список всех пользователей."""
-        async with pool.acquire() as conn:
-            async with conn.cursor() as cur:
-                await cur.execute("SELECT user_id FROM user_preferences")
-                user_ids = []
-                async for row in cur:
-                    user_ids.append(row[0])
-                return user_ids
+        async with pool.acquire() as conn, conn.cursor() as cur:
+            await cur.execute("SELECT user_id FROM user_preferences")
+            user_ids = []
+            async for row in cur:
+                user_ids.append(row[0])
+            return user_ids
 
     # --- Публичные асинхронные методы ---
 
@@ -193,7 +192,7 @@ class UserManager(DatabaseMixin):
                     INSERT INTO user_telegram_links (user_id, link_code, created_at)
                     VALUES (%s, %s, %s)
                 """,
-                    (user_id, link_code, datetime.now(timezone.utc)),
+                    (user_id, link_code, datetime.now(UTC)),
                 )
                 return link_code
 
@@ -209,7 +208,7 @@ class UserManager(DatabaseMixin):
                     WHERE link_code = %s AND linked_at IS NULL
                     AND created_at > %s
                 """,
-                    (link_code, datetime.now(timezone.utc) - timedelta(hours=24)),
+                    (link_code, datetime.now(UTC) - timedelta(hours=24)),
                 )
 
                 result = await cur.fetchone()
@@ -232,30 +231,29 @@ class UserManager(DatabaseMixin):
                     SET telegram_id = %s, linked_at = %s
                     WHERE link_code = %s
                 """,
-                    (telegram_id, datetime.now(timezone.utc), link_code),
+                    (telegram_id, datetime.now(UTC), link_code),
                 )
 
                 return True
 
     @db_operation
-    async def get_user_by_telegram_id(self, pool, telegram_id: int) -> Optional[Dict[str, Any]]:
+    async def get_user_by_telegram_id(self, pool, telegram_id: int) -> dict[str, Any] | None:
         """Получает пользователя по Telegram ID"""
-        async with pool.acquire() as conn:
-            async with conn.cursor() as cur:
-                await cur.execute(
-                    """
+        async with pool.acquire() as conn, conn.cursor() as cur:
+            await cur.execute(
+                """
                     SELECT u.* FROM users u
                     JOIN user_telegram_links utl ON u.id = utl.user_id
                     WHERE utl.telegram_id = %s AND utl.linked_at IS NOT NULL
                 """,
-                    (telegram_id,),
-                )
+                (telegram_id,),
+            )
 
-                result = await cur.fetchone()
-                if result:
-                    columns = [desc[0] for desc in cur.description]
-                    return dict(zip(columns, result))
-                return None
+            result = await cur.fetchone()
+            if result:
+                columns = [desc[0] for desc in cur.description]
+                return dict(zip(columns, result, strict=False))
+            return None
 
     @db_operation
     async def unlink_telegram(self, pool, user_id: int) -> bool:

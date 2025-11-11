@@ -1,6 +1,8 @@
 import logging
-from typing import Callable, TypeVar, ParamSpec, Awaitable
+from collections.abc import Awaitable, Callable
 from functools import wraps
+from typing import ParamSpec, TypeVar
+
 from config import get_shared_db_pool
 
 logger = logging.getLogger(__name__)

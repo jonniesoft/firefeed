@@ -1,23 +1,25 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
 from bot import (
     PreparedRSSItem,
-    mark_translation_as_published,
-    mark_original_as_published,
-    get_translation_id,
     api_get,
-    get_rss_items_list,
-    get_rss_item_by_id,
+    cleanup_http_session,
     get_categories,
-    get_sources,
+    get_current_user_language,
     get_languages,
     get_main_menu_keyboard,
-    set_current_user_language,
-    get_current_user_language,
-    process_rss_item,
-    monitor_rss_items_task,
+    get_rss_item_by_id,
+    get_rss_items_list,
+    get_sources,
+    get_translation_id,
     initialize_http_session,
-    cleanup_http_session,
+    mark_original_as_published,
+    mark_translation_as_published,
+    monitor_rss_items_task,
+    process_rss_item,
+    set_current_user_language,
 )
 
 
@@ -136,18 +138,16 @@ class TestBotFunctions:
             assert result == "ru"
 
     async def test_get_current_user_language_from_db(self):
-        with patch('bot.USER_LANGUAGES', {}):
-            with patch('bot.user_manager') as mock_um:
-                mock_um.get_user_language = AsyncMock(return_value="de")
-                result = await get_current_user_language(123)
-                assert result == "de"
+        with patch('bot.USER_LANGUAGES', {}), patch('bot.user_manager') as mock_um:
+            mock_um.get_user_language = AsyncMock(return_value="de")
+            result = await get_current_user_language(123)
+            assert result == "de"
 
     async def test_get_current_user_language_default(self):
-        with patch('bot.USER_LANGUAGES', {}):
-            with patch('bot.user_manager') as mock_um:
-                mock_um.get_user_language = AsyncMock(return_value=None)
-                result = await get_current_user_language(123)
-                assert result == "en"
+        with patch('bot.USER_LANGUAGES', {}), patch('bot.user_manager') as mock_um:
+            mock_um.get_user_language = AsyncMock(return_value=None)
+            result = await get_current_user_language(123)
+            assert result == "en"
 
     async def test_process_rss_item(self):
         PreparedRSSItem(

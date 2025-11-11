@@ -1,10 +1,11 @@
+import logging
 import re
+
+import numpy as np
 import spacy
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
-import numpy as np
-from typing import List, Optional
-import logging
+
 from utils.text import TextProcessor
 
 logger = logging.getLogger(__name__)
@@ -61,7 +62,7 @@ class FireFeedEmbeddingsProcessor:
         embedding = self.model.encode(sample_text)
         return len(embedding)
 
-    def _get_spacy_model(self, lang_code: str) -> Optional[spacy.Language]:
+    def _get_spacy_model(self, lang_code: str) -> spacy.Language | None:
         """Получает spacy модель для языка с глобальным LRU кэшированием"""
         if lang_code in self._spacy_cache:
             # Обновляем порядок использования (LRU)
@@ -145,7 +146,7 @@ class FireFeedEmbeddingsProcessor:
         cls._spacy_usage_order.clear()
         logger.info("[EMBEDDINGS] Глобальный кэш моделей очищен")
 
-    def generate_embedding(self, text: str, lang_code: str = "en") -> List[float]:
+    def generate_embedding(self, text: str, lang_code: str = "en") -> list[float]:
         """
         Генерация эмбеддинга для текста
 
@@ -160,7 +161,7 @@ class FireFeedEmbeddingsProcessor:
         embedding = self.model.encode(normalized_text, show_progress_bar=False)
         return embedding.tolist()
 
-    def calculate_similarity(self, embedding1: List[float], embedding2: List[float]) -> float:
+    def calculate_similarity(self, embedding1: list[float], embedding2: list[float]) -> float:
         """
         Расчет косинусного сходства между двумя эмбеддингами
 

@@ -1,7 +1,6 @@
-import re
 import html
 import logging
-from typing import Optional
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -10,7 +9,7 @@ class TextProcessor:
     """Класс для обработки и валидации текста"""
 
     @staticmethod
-    def clean(raw_html: Optional[str]) -> str:
+    def clean(raw_html: str | None) -> str:
         """Удаляет все HTML-теги и преобразует HTML-сущности"""
         if not raw_html:
             return ""
@@ -39,14 +38,14 @@ class TextProcessor:
         return clean_text.strip()
 
     @staticmethod
-    def normalize(text: Optional[str]) -> str:
+    def normalize(text: str | None) -> str:
         """Нормализует пробелы в тексте"""
         if not text:
             return ""
         return re.sub(r"\s+", " ", text).strip()
 
     @staticmethod
-    def validate_length(text: Optional[str], min_length: int = 1, max_length: int = 10000) -> bool:
+    def validate_length(text: str | None, min_length: int = 1, max_length: int = 10000) -> bool:
         """Проверяет длину текста.
 
         Принимает Optional[str]; None трактуется как пустой текст.
@@ -57,7 +56,7 @@ class TextProcessor:
         return min_length <= len(text) <= max_length
 
     @staticmethod
-    def remove_duplicates(text: Optional[str]) -> str:
+    def remove_duplicates(text: str | None) -> str:
         """Удаляет последовательные дубликаты слов.
 
         Если входной текст None — возвращает пустую строку.
@@ -79,7 +78,7 @@ class TextProcessor:
         return " ".join(deduped_words)
 
     @staticmethod
-    def extract_sentences(text: Optional[str], lang_code: str = "en") -> list:
+    def extract_sentences(text: str | None, _lang_code: str = "en") -> list:
         """Разбивает текст на предложения (упрощенная версия без spaCy).
 
         При None/пустой строке возвращает пустой список. Параметр lang_code
@@ -92,7 +91,7 @@ class TextProcessor:
         return [s.strip() for s in sentences if s.strip()]
 
     @staticmethod
-    def is_gibberish(text: Optional[str], threshold: float = 0.7) -> bool:
+    def is_gibberish(text: str | None, threshold: float = 0.7) -> bool:
         """Проверяет, является ли текст бессмысленным набором символов"""
         if not text or len(text) < 10:
             return False
