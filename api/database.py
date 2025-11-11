@@ -6,7 +6,7 @@ import logging
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import config
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any, List, Set, Tuple
+from typing import Optional, Dict, Any, Set, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -351,7 +351,7 @@ async def get_all_category_ids(pool) -> Set[int]:
                 logger.error(f"[DB] Error fetching category ids: {e}")
                 return set()
 
-async def get_user_categories(pool, user_id: int, source_ids: Optional[List[int]] = None) -> List[Dict[str, Any]]:
+async def get_user_categories(pool, user_id: int, source_ids: Optional[list[int]] = None) -> list[Dict[str, Any]]:
     """Получает список категорий пользователя с фильтрацией по source_id"""
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
@@ -406,7 +406,7 @@ async def create_user_rss_feed(
                 return None
 
 
-async def get_user_rss_feeds(pool, user_id: int, limit: int, offset: int) -> List[Dict[str, Any]]:
+async def get_user_rss_feeds(pool, user_id: int, limit: int, offset: int) -> list[Dict[str, Any]]:
     """Получает список RSS-лент пользователя"""
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
@@ -506,7 +506,7 @@ async def delete_user_rss_feed(pool, user_id: int, feed_id: int) -> bool:
 
 async def get_user_rss_items_list(
     pool, user_id: int, display_language: str, original_language: Optional[str], limit: int, offset: int
-) -> Tuple[int, List[Tuple], List[str]]:
+) -> Tuple[int, list[Tuple], list[str]]:
     """
     Получает список RSS-элементов для текущего пользователя на основе его подписок.
     Возвращает кортеж (total_count, results_rows, column_names).
@@ -616,7 +616,7 @@ async def get_user_rss_items_list(
 
 async def get_user_rss_items_list_by_feed(
     pool, user_id: int, feed_id: int, display_language: str, original_language: Optional[str], limit: int, offset: int
-) -> Tuple[int, List[Tuple], List[str]]:
+) -> Tuple[int, list[Tuple], list[str]]:
     """
     Получает список RSS-элементов из конкретной пользовательской RSS-ленты текущего пользователя.
     Возвращает кортеж (total_count, results_rows, column_names).
@@ -760,7 +760,7 @@ async def get_rss_item_by_id(pool, news_id: str) -> Optional[Tuple]:
 
 
 # --- Добавлено: обертка для get_rss_item_by_id, возвращающая row и columns ---
-async def get_rss_item_by_id_full(pool, news_id: str) -> Tuple[Optional[Tuple], List[str]]:
+async def get_rss_item_by_id_full(pool, news_id: str) -> Tuple[Optional[Tuple], list[str]]:
     """Получает RSS-элемент по её ID, возвращая кортеж (row, columns)."""
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
@@ -804,8 +804,8 @@ async def get_all_rss_items_list(
     pool,
     display_language: str,
     original_language: Optional[str],
-    category_id: Optional[List[int]],
-    source_id: Optional[List[int]],
+    category_id: Optional[list[int]],
+    source_id: Optional[list[int]],
     telegram_published: Optional[bool],
     from_date: Optional[datetime],
     search_phrase: Optional[str],
@@ -814,7 +814,7 @@ async def get_all_rss_items_list(
     cursor_news_id: Optional[str],
     limit: int,
     offset: int,
-) -> Tuple[int, List[Tuple], List[str]]:
+) -> Tuple[int, list[Tuple], list[str]]:
     """
     Получает список всех RSS-элементов с фильтрацией.
     По умолчанию джоинит только переводы nt_display (display_language). При include_all_translations=True
@@ -1008,8 +1008,8 @@ async def get_all_rss_items_list(
 
 
 async def get_all_categories_list(
-    pool, limit: int, offset: int, source_ids: Optional[List[int]] = None
-) -> Tuple[int, List[Dict[str, Any]]]:
+    pool, limit: int, offset: int, source_ids: Optional[list[int]] = None
+) -> Tuple[int, list[Dict[str, Any]]]:
     """
     Получает список всех категорий с пагинацией и фильтрацией по source_id.
     Возвращает кортеж (total_count, results).
@@ -1126,8 +1126,8 @@ async def confirm_password_reset_transaction(pool, token: str, new_password_hash
                 return False
 
 async def get_all_sources_list(
-    pool, limit: int, offset: int, category_id: Optional[List[int]] = None
-) -> Tuple[int, List[Dict[str, Any]]]:
+    pool, limit: int, offset: int, category_id: Optional[list[int]] = None
+) -> Tuple[int, list[Dict[str, Any]]]:
     """
     Получает список всех источников с пагинацией и опциональной фильтрацией по категориям.
     Возвращает кортеж (total_count, results).
@@ -1185,7 +1185,7 @@ async def get_all_sources_list(
                 raise
 
 
-async def get_recent_rss_items_for_broadcast(pool, last_check_time: datetime) -> List[Dict[str, Any]]:
+async def get_recent_rss_items_for_broadcast(pool, last_check_time: datetime) -> list[Dict[str, Any]]:
     """
     Получает список последних RSS-элементов для отправки по WebSocket.
     """

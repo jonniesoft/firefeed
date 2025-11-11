@@ -128,7 +128,7 @@ FireFeed - это высокопроизводительная система д
 uv pip install -r requirements.txt
 ```
 
-**Примечание**: После добавления `pyproject.toml` и `uv.lock` используйте `uv sync` вместо `uv pip install`. До тех пор используется `requirements.txt` для установки зависимостей.
+**Примечание**: Миграция на `pyproject.toml` и `uv.lock` — Target: Q1 2026; trigger: после стабильного релиза 1.0 или стабилизации зависимостей в CI. До миграции используйте `requirements.txt`; устаревание: `requirements.txt` поддерживается до Q2 2026 или до завершения миграции. Прогресс: https://github.com/yuremweiland/firefeed/issues, https://github.com/yuremweiland/firefeed/projects.
 
 ### Базовый запуск
 
@@ -329,7 +329,7 @@ cd firefeed
 uv pip install -r requirements.txt
 ```
 
-**Примечание**: `pyproject.toml` и `uv.lock` будут созданы в следующей фазе миграции. После их добавления используйте `uv sync` вместо `uv pip install -r requirements.txt`.
+**Примечание**: Миграция на `pyproject.toml` и `uv.lock` — Target: Q1 2026; trigger: после стабильного релиза 1.0 или стабилизации зависимостей в CI. До миграции используйте `requirements.txt`; устаревание: `requirements.txt` поддерживается до Q2 2026 или до завершения миграции. Прогресс: https://github.com/yuremweiland/firefeed/issues, https://github.com/yuremweiland/firefeed/projects.
 
 ### Работа с UV
 

@@ -53,17 +53,24 @@ RUN apt-get update && apt-get install -y \
     libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
+# Создаем непривилегированного пользователя (uid/gid 1000) для запуска приложения
+RUN groupadd -g 1000 appuser && \
+    useradd -u 1000 -g 1000 -m -s /usr/sbin/nologin appuser
+
 # Устанавливаем рабочую директорию
 WORKDIR /app
 
 # Копируем код приложения и виртуальное окружение из builder stage
-COPY --from=builder /app /app
+COPY --from=builder --chown=1000:1000 /app /app
 
 # Добавляем .venv/bin в PATH
 ENV PATH="/app/.venv/bin:$PATH"
 
 # Создаем директорию для данных (если нужно для изображений, но лучше монтировать volume)
-RUN mkdir -p /app/data
+RUN install -d -o 1000 -g 1000 /app/data
+
+# Запускаем процессы от непривилегированного пользователя
+USER appuser
 
 # Экспортируем порт для API (uvicorn по умолчанию 8000)
 EXPOSE 8000
