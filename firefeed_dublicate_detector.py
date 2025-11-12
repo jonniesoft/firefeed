@@ -137,7 +137,7 @@ class FireFeedDuplicateDetector(DatabaseMixin):
             logger.debug(f"Эмбеддинг для RSS-элемента {rss_item_id} успешно сохранен")
 
     async def get_similar_rss_items(
-        self, embedding: list[float], current_rss_item_id: str = None, limit: int = 10, pool=None
+        self, embedding: list[float], current_rss_item_id: str | None = None, limit: int = 10, pool=None
     ) -> list[dict[str, Any]]:
         """
         Поиск похожих RSS-элементов в базе данных

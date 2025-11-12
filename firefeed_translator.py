@@ -78,7 +78,7 @@ class FireFeedTranslator:
         logger.info(f"[TRANSLATOR] Максимум моделей в кэше: {max_cached_models}")
 
         # Запуск фоновой задачи для выгрузки неиспользуемых моделей
-        asyncio.create_task(self._model_cleanup_task())
+        self._cleanup_task = asyncio.create_task(self._model_cleanup_task())
 
     def _get_spacy_model(self, lang_code):
         """Получает spacy модель для языка с LRU кэшированием."""

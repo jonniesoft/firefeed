@@ -26,17 +26,27 @@ logger = logging.getLogger(__name__)
 async def lifespan(_app: FastAPI):
     """Управление жизненным циклом приложения"""
     # Startup
-    asyncio.create_task(check_for_new_rss_items())
+    rss_task = asyncio.create_task(check_for_new_rss_items())
     logger.info("[Startup] RSS items checking task started")
 
-    yield
-
-    # Shutdown
     try:
-        await database.close_db_pool()
-        logger.info("[Shutdown] Database pool closed")
-    except Exception as e:
-        logger.error(f"[Shutdown] Error closing DB pool: {e}")
+        yield
+    finally:
+        # Shutdown: cancel background task gracefully
+        if not rss_task.done():
+            logger.info("[Shutdown] Cancelling RSS checking task...")
+            rss_task.cancel()
+            try:
+                await rss_task
+            except asyncio.CancelledError:
+                logger.info("[Shutdown] RSS checking task cancelled successfully")
+
+        # Close database pool
+        try:
+            await database.close_db_pool()
+            logger.info("[Shutdown] Database pool closed")
+        except Exception as e:
+            logger.error(f"[Shutdown] Error closing DB pool: {e}")
 
 
 app = FastAPI(

@@ -1,5 +1,6 @@
 import logging
 import re
+from typing import Any, ClassVar
 
 import numpy as np
 import spacy
@@ -13,10 +14,10 @@ logger = logging.getLogger(__name__)
 
 class FireFeedEmbeddingsProcessor:
     # Глобальный кэш для синглтона
-    _instance = None
-    _model_cache = {}
-    _spacy_cache = {}
-    _spacy_usage_order = []
+    _instance: ClassVar["FireFeedEmbeddingsProcessor | None"] = None
+    _model_cache: ClassVar[dict[str, Any]] = {}
+    _spacy_cache: ClassVar[dict[str, Any]] = {}
+    _spacy_usage_order: ClassVar[list[str]] = []
 
     def __new__(cls, model_name: str = "paraphrase-multilingual-MiniLM-L12-v2", device: str = "cpu", max_spacy_cache: int = 3):
         """Синглтон паттерн для кэширования моделей"""

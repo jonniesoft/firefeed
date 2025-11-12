@@ -66,7 +66,7 @@ class PreparedRSSItem:
 
 
 # --- Функции для работы с БД ---
-async def mark_translation_as_published(translation_id: int, channel_id: int, message_id: int = None):
+async def mark_translation_as_published(translation_id: int, channel_id: int, message_id: int | None = None):
     """Помечает перевод как опубликованный в Telegram-канале."""
     try:
         # Получаем общий пул подключений
@@ -90,7 +90,7 @@ async def mark_translation_as_published(translation_id: int, channel_id: int, me
         return False
 
 
-async def mark_original_as_published(news_id: str, channel_id: int, message_id: int = None):
+async def mark_original_as_published(news_id: str, channel_id: int, message_id: int | None = None):
     """Помечает оригинальную новость как опубликованную в Telegram-канале."""
     try:
         # Получаем общий пул подключений
@@ -132,7 +132,7 @@ async def get_translation_id(news_id: str, language: str) -> int:
 
 
 # --- Функции для работы с API ---
-async def api_get(endpoint: str, params: dict = None) -> dict:
+async def api_get(endpoint: str, params: dict | None = None) -> dict:
     """Выполняет GET-запрос к API."""
     global http_session
     if http_session is None:
@@ -169,7 +169,7 @@ async def api_get(endpoint: str, params: dict = None) -> dict:
         return {}
 
 
-async def get_rss_items_list(display_language: str = None, **filters) -> dict:
+async def get_rss_items_list(display_language: str | None = None, **filters) -> dict:
     """Получает список RSS-элементов."""
     params = {}
     if display_language is not None:
