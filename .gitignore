@@ -43,3 +43,8 @@ cover/
 .DS_Store
 .env.*
 .envrc
+# AI assistant tools
+.serena/
+.gemini/
+fix_sim117.py
+start_serena_mcp.sh
