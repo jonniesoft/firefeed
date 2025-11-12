@@ -23,54 +23,77 @@ from bot import (
 )
 
 
+
+class AsyncContextManagerMock:
+    """Helper для создания async context manager mock объектов.
+    
+    Используется для тестирования кода с комбинированным async with синтаксисом:
+    async with pool.acquire() as conn, conn.cursor() as cur:
+    """
+    
+    def __init__(self, return_value):
+        self.return_value = return_value
+    
+    async def __aenter__(self):
+        return self.return_value
+    
+    async def __aexit__(self, *args):
+        pass
+
+
 @pytest.mark.asyncio
 class TestBotFunctions:
     @pytest.fixture
-    def mock_pool(self):
+    def mock_pool(self, mock_conn):
+        """Mock для connection pool с acquire() как async context manager."""
         pool = AsyncMock()
+        # acquire() должен возвращать async context manager
+        pool.acquire = lambda: AsyncContextManagerMock(mock_conn)
         return pool
 
     @pytest.fixture
-    def mock_conn(self):
+    def mock_conn(self, mock_cur):
+        """Mock для database connection с cursor() как async context manager."""
         conn = AsyncMock()
+        # cursor() должен возвращать async context manager
+        conn.cursor = lambda: AsyncContextManagerMock(mock_cur)
         return conn
 
     @pytest.fixture
     def mock_cur(self):
+        """Mock для database cursor с async методами."""
         cur = AsyncMock()
+        cur.fetchone = AsyncMock(return_value=None)
+        cur.execute = AsyncMock()
         return cur
 
     async def test_mark_translation_as_published_success(self, mock_pool, mock_conn, mock_cur):
         with patch('bot.get_shared_db_pool', return_value=mock_pool):
-            mock_pool.acquire.return_value.__aenter__.return_value = mock_conn
-            mock_conn.cursor.return_value.__aenter__.return_value = mock_cur
-
             result = await mark_translation_as_published(1, 12345, 678)
             assert result is True
+            # Проверяем, что execute был вызван
+            mock_cur.execute.assert_called_once()
 
     async def test_mark_original_as_published_success(self, mock_pool, mock_conn, mock_cur):
         with patch('bot.get_shared_db_pool', return_value=mock_pool):
-            mock_pool.acquire.return_value.__aenter__.return_value = mock_conn
-            mock_conn.cursor.return_value.__aenter__.return_value = mock_cur
-
             result = await mark_original_as_published("news123", 12345, 678)
             assert result is True
+            # Проверяем, что execute был вызван
+            mock_cur.execute.assert_called_once()
 
     async def test_get_translation_id_success(self, mock_pool, mock_conn, mock_cur):
         with patch('bot.get_shared_db_pool', return_value=mock_pool):
-            mock_pool.acquire.return_value.__aenter__.return_value = mock_conn
-            mock_conn.cursor.return_value.__aenter__.return_value = mock_cur
             mock_cur.fetchone.return_value = (42,)
-
+            
             result = await get_translation_id("news123", "ru")
             assert result == 42
+            # Проверяем, что запрос был выполнен
+            mock_cur.execute.assert_called_once()
 
     async def test_get_translation_id_not_found(self, mock_pool, mock_conn, mock_cur):
         with patch('bot.get_shared_db_pool', return_value=mock_pool):
-            mock_pool.acquire.return_value.__aenter__.return_value = mock_conn
-            mock_conn.cursor.return_value.__aenter__.return_value = mock_cur
             mock_cur.fetchone.return_value = None
-
+            
             result = await get_translation_id("news123", "ru")
             assert result is None
 
@@ -118,12 +141,6 @@ class TestBotFunctions:
         with patch('bot.api_get', return_value={"results": ["en", "ru"]}):
             result = await get_languages()
             assert result == ["en", "ru"]
-
-    def test_get_main_menu_keyboard(self):
-        keyboard = get_main_menu_keyboard("en")
-        assert keyboard is not None
-        assert len(keyboard.keyboard) == 2  # 2 rows
-        assert len(keyboard.keyboard[0]) == 2  # 2 buttons per row
 
     async def test_set_current_user_language(self):
         with patch('bot.user_manager') as mock_um:
@@ -200,3 +217,13 @@ class TestBotFunctions:
         with patch('bot.http_session', mock_session):
             await cleanup_http_session()
             assert mock_session.close.called
+
+
+class TestBotSyncFunctions:
+    """Тесты для синхронных функций bot.py (без @pytest.mark.asyncio)"""
+    
+    def test_get_main_menu_keyboard(self):
+        keyboard = get_main_menu_keyboard("en")
+        assert keyboard is not None
+        assert len(keyboard.keyboard) == 2  # 2 rows
+        assert len(keyboard.keyboard[0]) == 2  # 2 buttons per row

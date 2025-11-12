@@ -151,6 +151,10 @@ known-first-party = ["api", "utils"]
 quote-style = "double"
 indent-style = "space"
 
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
 [tool.pyright]
 pythonVersion = "3.13"
 pythonPlatform = "Linux"
