@@ -409,7 +409,7 @@ class RSSManager:
             return False
 
     def _create_translation_callbacks(self, news_id):
-        async def on_success(translations, task_id=None):
+        async def on_success(translations, _task_id=None):
             try:
                 await self.save_translations_to_db(news_id, translations)
                 logger.info(f"[DB] [CALLBACK] Переводы для {str(news_id)[:20]} успешно сохранены из callback")

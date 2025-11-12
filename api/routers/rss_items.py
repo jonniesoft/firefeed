@@ -24,7 +24,7 @@ router = APIRouter(
 )
 
 
-def process_rss_items_results(results, columns, display_language, original_language, include_all_translations):
+def process_rss_items_results(results, columns, display_language, original_language, _include_all_translations):
     rss_items_list = []
     for row in results:
         row_dict = dict(zip(columns, row, strict=False))

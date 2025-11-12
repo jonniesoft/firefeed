@@ -19,7 +19,7 @@ class FireFeedEmbeddingsProcessor:
     _spacy_cache: ClassVar[dict[str, Any]] = {}
     _spacy_usage_order: ClassVar[list[str]] = []
 
-    def __new__(cls, model_name: str = "paraphrase-multilingual-MiniLM-L12-v2", device: str = "cpu", max_spacy_cache: int = 3):
+    def __new__(cls, _model_name: str = "paraphrase-multilingual-MiniLM-L12-v2", _device: str = "cpu", _max_spacy_cache: int = 3):
         """Синглтон паттерн для кэширования моделей"""
         if cls._instance is None:
             cls._instance = super().__new__(cls)

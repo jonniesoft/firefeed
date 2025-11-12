@@ -240,7 +240,7 @@ async def get_current_user_language(user_id: int) -> str:
 
 
 # --- Обработчики команд ---
-async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def start_command(update: Update, _context: ContextTypes.DEFAULT_TYPE):
     """Обработчик команды /start."""
     user = update.effective_user
     user_id = user.id
@@ -269,7 +269,7 @@ async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(get_message("settings_error", lang))
 
 
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def help_command(update: Update, _context: ContextTypes.DEFAULT_TYPE):
     """Обработчик команды /help."""
     user_id = update.effective_user.id
     lang = await get_current_user_language(user_id)
@@ -278,7 +278,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     USER_CURRENT_MENUS[user_id] = "main"
 
 
-async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def status_command(update: Update, _context: ContextTypes.DEFAULT_TYPE):
     """Обработчик команды /status."""
     global user_manager
     user_id = update.effective_user.id
@@ -293,7 +293,7 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     USER_CURRENT_MENUS[user_id] = "main"
 
 
-async def change_language_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def change_language_command(update: Update, _context: ContextTypes.DEFAULT_TYPE):
     """Обработчик команды смены языка."""
     user_id = update.effective_user.id
     lang = await get_current_user_language(user_id)
@@ -494,7 +494,7 @@ async def handle_menu_selection(update: Update, context: ContextTypes.DEFAULT_TY
     logger.info(f"Неизвестный выбор меню для {user_id}: {text}")
 
 
-async def debug(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def debug(update: Update, _context: ContextTypes.DEFAULT_TYPE):
     """Обработчик отладочных сообщений."""
     user_id = update.effective_user.id
     lang = await get_current_user_language(user_id)
@@ -849,7 +849,7 @@ async def cleanup_http_session():
             logger.error(f"Ошибка при закрытии HTTP-сессии: {e}")
 
 
-async def post_stop(application: Application) -> None:
+async def post_stop(_application: Application) -> None:
     """Вызывается при остановке приложения."""
     logger.info("Остановка приложения и закрытие ресурсов...")
 
@@ -866,7 +866,7 @@ async def post_stop(application: Application) -> None:
     logger.info("Все ресурсы освобождены")
 
 
-async def post_init(application: Application) -> None:
+async def post_init(_application: Application) -> None:
     """Вызывается после инициализации приложения."""
     global user_manager
     logger.info("Приложение инициализировано")
@@ -915,7 +915,7 @@ def main():
         raise
 
 
-async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def error_handler(_update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик ошибок."""
     if isinstance(context.error, NetworkError):
         logger.error("Network error detected. Retrying...")

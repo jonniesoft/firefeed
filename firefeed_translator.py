@@ -666,7 +666,7 @@ class FireFeedTranslator:
                 result_texts[i] = text  # Пустой текст остается пустым
         return [self.text_processor.clean(text) for text in result_texts]
 
-    def _translate_batch_sync(self, texts, source_lang="en", target_lang="ru", context_window=2, beam_size=None):
+    def _translate_batch_sync(self, texts, source_lang="en", target_lang="ru", _context_window=2, beam_size=None):
         """Синхронная версия translate_batch для использования в пуле потоков"""
         if not texts:
             return []
