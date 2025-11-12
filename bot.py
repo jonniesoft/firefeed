@@ -822,7 +822,7 @@ async def initialize_http_session():
     global http_session
     if http_session is None:
         # Добавляем повторные попытки и таймауты для более надежного соединения
-        connector = aiohttp.TCPConnector(limit=100, limit_per_host=30, keepalive_timeout=30, enable_cleanup_closed=True)
+        connector = aiohttp.TCPConnector(limit=100, limit_per_host=30, keepalive_timeout=30)
         timeout = aiohttp.ClientTimeout(total=15, connect=5)
         http_session = aiohttp.ClientSession(
             connector=connector, timeout=timeout, headers={"User-Agent": "TelegramBot/1.0"}
