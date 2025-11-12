@@ -5,6 +5,7 @@ import os
 import re
 import sys
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import aiohttp
@@ -885,7 +886,7 @@ async def post_init(application: Application) -> None:
 def main():
     logger.info("=== НАЧАЛО ЗАПУСКА БОТА ===")
     logger.info(f"Python version: {sys.version}")
-    logger.info(f"Current working directory: {os.getcwd()}")
+    logger.info(f"Current working directory: {Path.cwd()}")
     logger.info(f"Bot token configured: {'Yes' if BOT_TOKEN else 'No'}")
 
     application = Application.builder().token(BOT_TOKEN).post_stop(post_stop).post_init(post_init).build()

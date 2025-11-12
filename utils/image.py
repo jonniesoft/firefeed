@@ -1,7 +1,7 @@
 import hashlib
 import logging
-import os
 from datetime import datetime
+from pathlib import Path
 from urllib.parse import urljoin, urlparse
 
 import aiohttp
@@ -34,10 +34,10 @@ class ImageProcessor:
             # Используем текущее время для формирования пути
             created_at = datetime.now()
             date_path = created_at.strftime("%Y/%m/%d")
-            full_save_directory = os.path.join(save_directory, date_path)
+            full_save_directory = Path(save_directory) / date_path
 
             logger.debug(f"[DEBUG] Начинаем сохранять изображение из {url} в {full_save_directory}")
-            os.makedirs(full_save_directory, exist_ok=True)
+            full_save_directory.mkdir(parents=True, exist_ok=True)
 
             headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
@@ -67,29 +67,29 @@ class ImageProcessor:
                         parsed_url = urlparse(url)
                         path = parsed_url.path
                         if path.lower().endswith(tuple(IMAGE_FILE_EXTENSIONS)):
-                            extension = os.path.splitext(path)[1].lower()
+                            extension = Path(path).suffix.lower()
 
                     safe_rss_item_id = "".join(c for c in str(rss_item_id) if c.isalnum() or c in ("-", "_")).rstrip()
                     if not safe_rss_item_id:
                         safe_rss_item_id = hashlib.md5(url.encode()).hexdigest()
 
                     filename = f"{safe_rss_item_id}{extension}"
-                    file_path = os.path.join(full_save_directory, filename)
+                    file_path = full_save_directory / filename
 
                     # Проверяем, существует ли файл уже
-                    if os.path.exists(file_path):
+                    if file_path.exists():
                         logger.info(f"[LOG] Изображение уже существует на сервере: {file_path}")
-                        return file_path
+                        return str(file_path)
 
                     # Читаем контент асинхронно
                     content = await response.read()
 
                     # Сохраняем файл асинхронно
-                    with open(file_path, "wb") as f:
+                    with file_path.open("wb") as f:
                         f.write(content)
 
             logger.info(f"[LOG] Изображение успешно сохранено: {file_path}")
-            return file_path
+            return str(file_path)
 
         except OSError as e:
             logger.warning(

@@ -1,8 +1,8 @@
 import logging
-import os
 from datetime import UTC, datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from pathlib import Path
 
 from aiosmtplib import send
 from jinja2 import Environment, FileSystemLoader
@@ -20,7 +20,7 @@ class EmailSender:
         self.sender_email = self.smtp_config["email"]
 
         # Настройка Jinja2 для загрузки шаблонов
-        template_dir = os.path.join(os.path.dirname(__file__), "templates")
+        template_dir = Path(__file__).parent / "templates"
         self.jinja_env = Environment(loader=FileSystemLoader(template_dir))
 
     async def send_password_reset_email(self, to_email: str, reset_token: str, language: str = "en") -> bool:

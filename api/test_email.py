@@ -1,11 +1,11 @@
 import asyncio
 import logging
-import os
 import sys
 import traceback
+from pathlib import Path
 
 # Добавляем корень проекта в путь поиска модулей
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from api.email_service.sender import send_verification_email
 
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 async def test_email():
     # Замени на свой email для тестирования
-    test_email = "yurem@bk.ru"  # <-- Замени на реальный email
+    test_email = "jonnie.software.ai@gmail.com"  # <-- Замени на реальный email
     verification_code = "123456"
 
     logger.info(f"Отправляем тестовое письмо на {test_email}")
