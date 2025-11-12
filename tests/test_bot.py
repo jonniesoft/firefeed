@@ -156,26 +156,24 @@ class TestBotFunctions:
             image_filename="test.jpg"
         )
 
-        with patch('bot.post_to_channel') as mock_post:
-            with patch('bot.send_personal_rss_items') as mock_send:
-                with patch('bot.CHANNEL_CATEGORIES', ["Tech"]):
-                    context = MagicMock()
-                    rss_item_from_api = {
-                        "news_id": "news123",
-                        "original_title": "Test",
-                        "original_content": "Content",
-                        "category": "Tech",
-                        "source": "BBC",
-                        "original_language": "en",
-                        "source_url": "http://example.com",
-                        "image_url": "test.jpg",
-                        "translations": {"ru": {"title": "Тест"}}
-                    }
+        with patch('bot.post_to_channel') as mock_post, patch('bot.send_personal_rss_items') as mock_send, patch('bot.CHANNEL_CATEGORIES', ["Tech"]):
+            context = MagicMock()
+            rss_item_from_api = {
+                "news_id": "news123",
+                "original_title": "Test",
+                "original_content": "Content",
+                "category": "Tech",
+                "source": "BBC",
+                "original_language": "en",
+                "source_url": "http://example.com",
+                "image_url": "test.jpg",
+                "translations": {"ru": {"title": "Тест"}}
+            }
 
-                    result = await process_rss_item(context, rss_item_from_api)
-                    assert result is True
-                    assert mock_post.called
-                    assert mock_send.called
+            result = await process_rss_item(context, rss_item_from_api)
+            assert result is True
+            assert mock_post.called
+            assert mock_send.called
 
     async def test_monitor_rss_items_task_success(self):
         with patch('bot.get_rss_items_list', return_value={"results": []}):
@@ -187,17 +185,15 @@ class TestBotFunctions:
             {"news_id": "1", "original_title": "Test 1"},
             {"news_id": "2", "original_title": "Test 2"}
         ]
-        with patch('bot.get_rss_items_list', return_value={"results": rss_items}):
-            with patch('bot.process_rss_item', return_value=True) as mock_process:
-                context = MagicMock()
-                await monitor_rss_items_task(context)
-                assert mock_process.call_count == 2
+        with patch('bot.get_rss_items_list', return_value={"results": rss_items}), patch('bot.process_rss_item', return_value=True) as mock_process:
+            context = MagicMock()
+            await monitor_rss_items_task(context)
+            assert mock_process.call_count == 2
 
     async def test_initialize_http_session(self):
-        with patch('bot.http_session', None):
-            with patch('aiohttp.ClientSession') as mock_session:
-                await initialize_http_session()
-                assert mock_session.called
+        with patch('bot.http_session', None), patch('aiohttp.ClientSession') as mock_session:
+            await initialize_http_session()
+            assert mock_session.called
 
     async def test_cleanup_http_session(self):
         mock_session = AsyncMock()

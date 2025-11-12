@@ -182,39 +182,38 @@ class RSSManager:
         """Вспомогательный метод: Добавить новую RSS-ленту."""
         try:
             pool = await self.get_pool()
-            async with pool.acquire() as conn:
-                async with conn.cursor() as cur:
-                    # 1. Получить ID категории по имени
-                    await cur.execute("SELECT id FROM categories WHERE name = %s", (category_name,))
-                    cat_result = await cur.fetchone()
-                    if not cat_result:
-                        logger.error(
-                            f"[DB] [RSSManager] Ошибка: Категория '{category_name}' не найдена в таблице 'categories'."
-                        )
-                        return False
-                    category_id = cat_result[0]
+            async with pool.acquire() as conn, conn.cursor() as cur:
+                # 1. Получить ID категории по имени
+                await cur.execute("SELECT id FROM categories WHERE name = %s", (category_name,))
+                cat_result = await cur.fetchone()
+                if not cat_result:
+                    logger.error(
+                        f"[DB] [RSSManager] Ошибка: Категория '{category_name}' не найдена в таблице 'categories'."
+                    )
+                    return False
+                category_id = cat_result[0]
 
-                    # 2. Получить ID источника по имени
-                    await cur.execute("SELECT id FROM sources WHERE name = %s", (source_name,))
-                    src_result = await cur.fetchone()
-                    if not src_result:
-                        logger.error(
-                            f"[DB] [RSSManager] Ошибка: Источник '{source_name}' не найден в таблице 'sources'."
-                        )
-                        return False
-                    source_id = src_result[0]
+                # 2. Получить ID источника по имени
+                await cur.execute("SELECT id FROM sources WHERE name = %s", (source_name,))
+                src_result = await cur.fetchone()
+                if not src_result:
+                    logger.error(
+                        f"[DB] [RSSManager] Ошибка: Источник '{source_name}' не найден в таблице 'sources'."
+                    )
+                    return False
+                source_id = src_result[0]
 
-                    # 3. Вставить новую ленту
-                    feed_name = url.split("/")[-1] or "Новая лента"
-                    query = """
-                    INSERT INTO rss_feeds (url, name, category_id, source_id, language, is_active, created_at, updated_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, NOW(), NOW())
-                    ON CONFLICT (url) DO NOTHING
-                    """
-                    await cur.execute(query, (url, feed_name, category_id, source_id, language, is_active))
-                    # await conn.commit() # Явный коммит для этой операции - не нужен в aiopg?
-                    logger.info(f"[DB] [RSSManager] Лента '{url}' добавлена или уже существует.")
-                    return True
+                # 3. Вставить новую ленту
+                feed_name = url.split("/")[-1] or "Новая лента"
+                query = """
+                INSERT INTO rss_feeds (url, name, category_id, source_id, language, is_active, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s, NOW(), NOW())
+                ON CONFLICT (url) DO NOTHING
+                """
+                await cur.execute(query, (url, feed_name, category_id, source_id, language, is_active))
+                # await conn.commit() # Явный коммит для этой операции - не нужен в aiopg?
+                logger.info(f"[DB] [RSSManager] Лента '{url}' добавлена или уже существует.")
+                return True
         except Exception as e:
             logger.error(f"[DB] [RSSManager] Ошибка БД при добавлении фида {url}: {e}")
             return False
@@ -225,66 +224,65 @@ class RSSManager:
         """Вспомогательный метод: Обновить существующую RSS-ленту по ID."""
         try:
             pool = await self.get_pool()
-            async with pool.acquire() as conn:
-                async with conn.cursor() as cur:
-                    updates = []
-                    values = []
+            async with pool.acquire() as conn, conn.cursor() as cur:
+                updates = []
+                values = []
 
-                    # Обработка изменения категории по имени (если не None)
-                    if category_name is not None:
-                        await cur.execute("SELECT id FROM categories WHERE name = %s", (category_name,))
-                        cat_result = await cur.fetchone()
-                        if cat_result:
-                            updates.append("category_id = %s")
-                            values.append(cat_result[0])
-                        else:
-                            logger.warning(
-                                f"[DB] [RSSManager] Предупреждение: Категория '{category_name}' не найдена. Поле category_id не обновлено."
-                            )
-
-                    # Обработка изменения источника по имени (если не None)
-                    if source_name is not None:
-                        await cur.execute("SELECT id FROM sources WHERE name = %s", (source_name,))
-                        src_result = await cur.fetchone()
-                        if src_result:
-                            updates.append("source_id = %s")
-                            values.append(src_result[0])
-                        else:
-                            logger.warning(
-                                f"[DB] [RSSManager] Предупреждение: Источник '{source_name}' не найден. Поле source_id не обновлено."
-                            )
-
-                    # Обработка других полей (если не None)
-                    if url is not None:
-                        updates.append("url = %s")
-                        values.append(url)
-                    if name is not None:
-                        updates.append("name = %s")
-                        values.append(name)
-                    if language is not None:
-                        updates.append("language = %s")
-                        values.append(language)
-                    if is_active is not None:
-                        updates.append("is_active = %s")
-                        values.append(is_active)
-
-                    # Добавляем updated_at
-                    updates.append("updated_at = NOW()")
-                    values.append(feed_id)  # Для WHERE clause
-
-                    if updates:
-                        # Безопасная конструкция запроса с параметрами
-                        set_clause = ", ".join(updates)
-                        query = f"UPDATE rss_feeds SET {set_clause} WHERE id = %s"
-                        await cur.execute(query, values)
-                        affected_rows = cur.rowcount
-                        # await conn.commit() # Явный коммит - не нужен в aiopg?
-                        logger.info(f"[DB] [RSSManager] Лента с ID {feed_id} успешно обновлена.")
+                # Обработка изменения категории по имени (если не None)
+                if category_name is not None:
+                    await cur.execute("SELECT id FROM categories WHERE name = %s", (category_name,))
+                    cat_result = await cur.fetchone()
+                    if cat_result:
+                        updates.append("category_id = %s")
+                        values.append(cat_result[0])
                     else:
-                        logger.info(f"[DB] [RSSManager] Лента с ID {feed_id} не найдена или не была изменена.")
-                        affected_rows = 0
+                        logger.warning(
+                            f"[DB] [RSSManager] Предупреждение: Категория '{category_name}' не найдена. Поле category_id не обновлено."
+                        )
 
-                    return affected_rows > 0
+                # Обработка изменения источника по имени (если не None)
+                if source_name is not None:
+                    await cur.execute("SELECT id FROM sources WHERE name = %s", (source_name,))
+                    src_result = await cur.fetchone()
+                    if src_result:
+                        updates.append("source_id = %s")
+                        values.append(src_result[0])
+                    else:
+                        logger.warning(
+                            f"[DB] [RSSManager] Предупреждение: Источник '{source_name}' не найден. Поле source_id не обновлено."
+                        )
+
+                # Обработка других полей (если не None)
+                if url is not None:
+                    updates.append("url = %s")
+                    values.append(url)
+                if name is not None:
+                    updates.append("name = %s")
+                    values.append(name)
+                if language is not None:
+                    updates.append("language = %s")
+                    values.append(language)
+                if is_active is not None:
+                    updates.append("is_active = %s")
+                    values.append(is_active)
+
+                # Добавляем updated_at
+                updates.append("updated_at = NOW()")
+                values.append(feed_id)  # Для WHERE clause
+
+                if updates:
+                    # Безопасная конструкция запроса с параметрами
+                    set_clause = ", ".join(updates)
+                    query = f"UPDATE rss_feeds SET {set_clause} WHERE id = %s"
+                    await cur.execute(query, values)
+                    affected_rows = cur.rowcount
+                    # await conn.commit() # Явный коммит - не нужен в aiopg?
+                    logger.info(f"[DB] [RSSManager] Лента с ID {feed_id} успешно обновлена.")
+                else:
+                    logger.info(f"[DB] [RSSManager] Лента с ID {feed_id} не найдена или не была изменена.")
+                    affected_rows = 0
+
+                return affected_rows > 0
         except Exception as e:
             logger.error(f"[DB] [RSSManager] Ошибка БД при обновлении фида с ID {feed_id}: {e}")
             return False
@@ -293,14 +291,13 @@ class RSSManager:
         """Вспомогательный метод: Удалить RSS-ленту по ID."""
         try:
             pool = await self.get_pool()
-            async with pool.acquire() as conn:
-                async with conn.cursor() as cur:
-                    query = "DELETE FROM rss_feeds WHERE id = %s"
-                    await cur.execute(query, (feed_id,))
-                    affected_rows = cur.rowcount
-                    # await conn.commit() # Явный коммит - не нужен в aiopg?
-                    logger.info(f"[DB] [RSSManager] Лента с ID {feed_id} удалена. Затронуто строк: {affected_rows}")
-                    return affected_rows > 0
+            async with pool.acquire() as conn, conn.cursor() as cur:
+                query = "DELETE FROM rss_feeds WHERE id = %s"
+                await cur.execute(query, (feed_id,))
+                affected_rows = cur.rowcount
+                # await conn.commit() # Явный коммит - не нужен в aiopg?
+                logger.info(f"[DB] [RSSManager] Лента с ID {feed_id} удалена. Затронуто строк: {affected_rows}")
+                return affected_rows > 0
         except Exception as e:
             logger.error(f"[DB] [RSSManager] Ошибка БД при удалении фида с ID {feed_id}: {e}")
             return False
@@ -309,31 +306,29 @@ class RSSManager:
         """Вспомогательный метод: Получает кулдаун для RSS-ленты (по умолчанию 60 минут)."""
         try:
             pool = await self.get_pool()
-            async with pool.acquire() as conn:
-                async with conn.cursor() as cur:
-                    await cur.execute(
-                        "SELECT COALESCE(cooldown_minutes, 60) FROM rss_feeds WHERE id = %s", (rss_feed_id,)
-                    )
-                    row = await cur.fetchone()
-                    return row[0] if row else 60
+            async with pool.acquire() as conn, conn.cursor() as cur:
+                await cur.execute(
+                    "SELECT COALESCE(cooldown_minutes, 60) FROM rss_feeds WHERE id = %s", (rss_feed_id,)
+                )
+                row = await cur.fetchone()
+                return row[0] if row else 60
         except Exception as e:
             logger.error(f"[DB] [RSSManager] Ошибка при получении кулдауна для ленты {rss_feed_id}: {e}")
-            return 60  # Возвращаем значение по умолчанию
+            return 60  # Возвращаем значение по умолчанию  # Возвращаем значение по умолчанию
 
     async def get_max_news_per_hour_for_feed(self, rss_feed_id):
         """Вспомогательный метод: Получает максимальное количество RSS-элементов в час для RSS-ленты (по умолчанию 10)."""
         try:
             pool = await self.get_pool()
-            async with pool.acquire() as conn:
-                async with conn.cursor() as cur:
-                    await cur.execute(
-                        "SELECT COALESCE(max_news_per_hour, 10) FROM rss_feeds WHERE id = %s", (rss_feed_id,)
-                    )
-                    row = await cur.fetchone()
-                    return row[0] if row else 10
+            async with pool.acquire() as conn, conn.cursor() as cur:
+                await cur.execute(
+                    "SELECT COALESCE(max_news_per_hour, 10) FROM rss_feeds WHERE id = %s", (rss_feed_id,)
+                )
+                row = await cur.fetchone()
+                return row[0] if row else 10
         except Exception as e:
             logger.error(f"[DB] [RSSManager] Ошибка при получении max_news_per_hour для ленты {rss_feed_id}: {e}")
-            return 10  # Возвращаем значение по умолчанию
+            return 10  # Возвращаем значение по умолчанию  # Возвращаем значение по умолчанию
 
     async def get_last_published_time_for_feed(self, rss_feed_id):
         """Вспомогательный метод: Получает время последней публикации из конкретной RSS-ленты."""
@@ -430,13 +425,12 @@ class RSSManager:
             # Проверяем заголовки
             timeout = aiohttp.ClientTimeout(total=10)
             content_type_valid = False
-            async with aiohttp.ClientSession(timeout=timeout) as session:
-                async with session.head(url, headers=headers) as response:
-                    content_type = response.headers.get("Content-Type", "").lower()
-                    if "xml" in content_type or "rss" in content_type or "atom" in content_type:
-                        content_type_valid = True
-                    else:
-                        logger.warning(f"[RSS] [VALIDATE] URL {url} имеет Content-Type: {content_type}, проверяем содержимое...")
+            async with aiohttp.ClientSession(timeout=timeout) as session, session.head(url, headers=headers) as response:
+                content_type = response.headers.get("Content-Type", "").lower()
+                if "xml" in content_type or "rss" in content_type or "atom" in content_type:
+                    content_type_valid = True
+                else:
+                    logger.warning(f"[RSS] [VALIDATE] URL {url} имеет Content-Type: {content_type}, проверяем содержимое...")
 
             # Пробуем спарсить содержимое
             loop = asyncio.get_event_loop()
@@ -466,29 +460,28 @@ class RSSManager:
                 try:
                     logger.debug(f"[RSS] [VALIDATE] Попытка получить сырой контент для {url}")
                     timeout = aiohttp.ClientTimeout(total=15)
-                    async with aiohttp.ClientSession(timeout=timeout) as session:
-                        async with session.get(url, headers=headers) as response:
-                            raw_content = await response.text()
-                            loop = asyncio.get_event_loop()
-                            feed = await loop.run_in_executor(None, feedparser.parse, raw_content)
-                            if feed.bozo:
-                                # Игнорируем ошибки кодировки, так как контент все равно считывается
-                                if "document declared as us-ascii, but parsed as utf-8" in str(feed.bozo_exception):
-                                    logger.warning(f"[RSS] [VALIDATE] Игнорируем ошибку кодировки для сырого контента {url}: {feed.bozo_exception}")
-                                else:
-                                    logger.error(
-                                        f"[RSS] [VALIDATE] Ошибка парсинга сырого контента RSS {url}: {feed.bozo_exception}"
-                                    )
-                                    return False
-                            if not hasattr(feed, "entries") or len(feed.entries) == 0:
-                                logger.warning(
-                                    f"[RSS] [VALIDATE] RSS {url} не содержит записей после парсинга сырого контента"
+                    async with aiohttp.ClientSession(timeout=timeout) as session, session.get(url, headers=headers) as response:
+                        raw_content = await response.text()
+                        loop = asyncio.get_event_loop()
+                        feed = await loop.run_in_executor(None, feedparser.parse, raw_content)
+                        if feed.bozo:
+                            # Игнорируем ошибки кодировки, так как контент все равно считывается
+                            if "document declared as us-ascii, but parsed as utf-8" in str(feed.bozo_exception):
+                                logger.warning(f"[RSS] [VALIDATE] Игнорируем ошибку кодировки для сырого контента {url}: {feed.bozo_exception}")
+                            else:
+                                logger.error(
+                                    f"[RSS] [VALIDATE] Ошибка парсинга сырого контента RSS {url}: {feed.bozo_exception}"
                                 )
                                 return False
-                            logger.info(
-                                f"[RSS] [VALIDATE] RSS {url} валиден после парсинга сырого контента, содержит {len(feed.entries)} записей"
+                        if not hasattr(feed, "entries") or len(feed.entries) == 0:
+                            logger.warning(
+                                f"[RSS] [VALIDATE] RSS {url} не содержит записей после парсинга сырого контента"
                             )
-                            return True
+                            return False
+                        logger.info(
+                            f"[RSS] [VALIDATE] RSS {url} валиден после парсинга сырого контента, содержит {len(feed.entries)} записей"
+                        )
+                        return True
                 except Exception as raw_e:
                     logger.error(f"[RSS] [VALIDATE] Ошибка валидации сырого контента RSS {url}: {raw_e}")
                     return False
@@ -555,14 +548,13 @@ class RSSManager:
                     logger.debug(f"[RSS] [DEBUG] feedparser не смог распарсить {feed_info['url']}. Пробуем aiohttp...")
                     try:
                         timeout = aiohttp.ClientTimeout(total=15)
-                        async with aiohttp.ClientSession(timeout=timeout) as session:
-                            async with session.get(feed_info["url"], headers=headers) as response:
-                                raw_content = await response.text()
-                                # Парсим асинхронно
-                                loop = asyncio.get_event_loop()
-                                feed = await loop.run_in_executor(None, feedparser.parse, raw_content)
-                                if feed.entries:
-                                    logger.debug(f"[RSS] [DEBUG] aiohttp помог распарсить {feed_info['url']}")
+                        async with aiohttp.ClientSession(timeout=timeout) as session, session.get(feed_info["url"], headers=headers) as response:
+                            raw_content = await response.text()
+                            # Парсим асинхронно
+                            loop = asyncio.get_event_loop()
+                            feed = await loop.run_in_executor(None, feedparser.parse, raw_content)
+                            if feed.entries:
+                                logger.debug(f"[RSS] [DEBUG] aiohttp помог распарсить {feed_info['url']}")
                     except TimeoutError:
                         logger.debug(f"[RSS] [DEBUG] Таймаут при получении сырого содержимого для {feed_info['url']}")
                     except Exception as fetch_err:  # Еще более общий exception
@@ -644,22 +636,21 @@ class RSSManager:
 
                             # Проверяем тип контента перед скачиванием
                             timeout = aiohttp.ClientTimeout(total=10)
-                            async with aiohttp.ClientSession(timeout=timeout) as session:
-                                async with session.head(image_url_for_processing, timeout=timeout) as response:
-                                    content_type = response.headers.get("Content-Type", "").lower()
-                                    logger.debug(f"[RSS] [IMG] HEAD-запрос вернул Content-Type: {content_type}")
-                                    if content_type.startswith("image/"):
-                                        logger.debug(
-                                            "[RSS] [IMG] Подтвержден тип изображения через HEAD. Скачиваем..."
-                                        )
-                                        # Скачиваем и сохраняем изображение, используя news_id как идентификатор
-                                        local_image_path = await ImageProcessor.download_and_save_image(
-                                            image_url_for_processing, rss_item["id"], save_directory=IMAGES_ROOT_DIR
-                                        )
-                                    else:
-                                        logger.warning(
-                                            f"[RSS] [IMG] URL не является изображением (Content-Type: {content_type}). Пропуск."
-                                        )
+                            async with aiohttp.ClientSession(timeout=timeout) as session, session.head(image_url_for_processing, timeout=timeout) as response:
+                                content_type = response.headers.get("Content-Type", "").lower()
+                                logger.debug(f"[RSS] [IMG] HEAD-запрос вернул Content-Type: {content_type}")
+                                if content_type.startswith("image/"):
+                                    logger.debug(
+                                        "[RSS] [IMG] Подтвержден тип изображения через HEAD. Скачиваем..."
+                                    )
+                                    # Скачиваем и сохраняем изображение, используя news_id как идентификатор
+                                    local_image_path = await ImageProcessor.download_and_save_image(
+                                        image_url_for_processing, rss_item["id"], save_directory=IMAGES_ROOT_DIR
+                                    )
+                                else:
+                                    logger.warning(
+                                        f"[RSS] [IMG] URL не является изображением (Content-Type: {content_type}). Пропуск."
+                                    )
 
                         except TimeoutError:
                             logger.warning(
@@ -846,71 +837,70 @@ class RSSManager:
         """Сохраняет RSS-элемент в таблицу published_news_data и возвращает его news_id."""
         try:
             pool = await self.get_pool()
-            async with pool.acquire() as conn:
-                async with conn.cursor() as cur:
-                    # 1. Используем news_id из rss_item (уже сгенерирован на основе содержания)
-                    news_id = rss_item["id"]
-                    short_id = news_id[:20]
+            async with pool.acquire() as conn, conn.cursor() as cur:
+                # 1. Используем news_id из rss_item (уже сгенерирован на основе содержания)
+                news_id = rss_item["id"]
+                short_id = news_id[:20]
 
-                    # 2. Подготавливаем данные
-                    title = rss_item["title"][:255]
-                    content = rss_item["content"]
-                    original_language = rss_item["lang"]
-                    image_filename = rss_item["image_filename"]
-                    category_name = rss_item["category"]
-                    rss_item["source"]
-                    source_url = rss_item["link"]
+                # 2. Подготавливаем данные
+                title = rss_item["title"][:255]
+                content = rss_item["content"]
+                original_language = rss_item["lang"]
+                image_filename = rss_item["image_filename"]
+                category_name = rss_item["category"]
+                rss_item["source"]
+                source_url = rss_item["link"]
 
-                    # 3. Получаем category_id
-                    await cur.execute("SELECT id FROM categories WHERE name = %s", (category_name,))
-                    cat_result = await cur.fetchone()
-                    if not cat_result:
-                        logger.warning(
-                            f"[DB] [save_rss_item_to_db] Предупреждение: Категория '{category_name}' не найдена. Пропуск сохранения элемента."
-                        )
-                        return None
-                    category_id = cat_result[0]
+                # 3. Получаем category_id
+                await cur.execute("SELECT id FROM categories WHERE name = %s", (category_name,))
+                cat_result = await cur.fetchone()
+                if not cat_result:
+                    logger.warning(
+                        f"[DB] [save_rss_item_to_db] Предупреждение: Категория '{category_name}' не найдена. Пропуск сохранения элемента."
+                    )
+                    return None
+                category_id = cat_result[0]
 
-                    # 4. Выполняем запрос к published_news_data с INSERT ... ON CONFLICT
-                    query_published_news_data = """
-                    INSERT INTO published_news_data
-                    (news_id, original_title, original_content, original_language, category_id, image_filename, rss_feed_id, source_url, created_at, updated_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
-                    ON CONFLICT (news_id) DO UPDATE SET
-                    original_title = EXCLUDED.original_title,
-                    original_content = EXCLUDED.original_content,
-                    original_language = EXCLUDED.original_language,
-                    category_id = EXCLUDED.category_id,
-                    image_filename = EXCLUDED.image_filename,
-                    rss_feed_id = EXCLUDED.rss_feed_id,
-                    source_url = EXCLUDED.source_url,
-                    updated_at = NOW()
-                    """
-                    # 4a. Выполняем запрос
-                    logger.debug(
-                        f"[DB] [save_rss_item_to_db] Подготовка запроса к 'published_news_data' (ID: {short_id})"
-                    )
-                    await cur.execute(
-                        query_published_news_data,
-                        (
-                            news_id,
-                            title,
-                            content,
-                            original_language,
-                            category_id,
-                            image_filename,
-                            rss_feed_id,
-                            source_url,
-                        ),
-                    )
-                    logger.debug(
-                        f"[DB] [save_rss_item_to_db] Запрос к 'published_news_data' выполнен. (ID: {short_id})"
-                    )
+                # 4. Выполняем запрос к published_news_data с INSERT ... ON CONFLICT
+                query_published_news_data = """
+                INSERT INTO published_news_data
+                (news_id, original_title, original_content, original_language, category_id, image_filename, rss_feed_id, source_url, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+                ON CONFLICT (news_id) DO UPDATE SET
+                original_title = EXCLUDED.original_title,
+                original_content = EXCLUDED.original_content,
+                original_language = EXCLUDED.original_language,
+                category_id = EXCLUDED.category_id,
+                image_filename = EXCLUDED.image_filename,
+                rss_feed_id = EXCLUDED.rss_feed_id,
+                source_url = EXCLUDED.source_url,
+                updated_at = NOW()
+                """
+                # 4a. Выполняем запрос
+                logger.debug(
+                    f"[DB] [save_rss_item_to_db] Подготовка запроса к 'published_news_data' (ID: {short_id})"
+                )
+                await cur.execute(
+                    query_published_news_data,
+                    (
+                        news_id,
+                        title,
+                        content,
+                        original_language,
+                        category_id,
+                        image_filename,
+                        rss_feed_id,
+                        source_url,
+                    ),
+                )
+                logger.debug(
+                    f"[DB] [save_rss_item_to_db] Запрос к 'published_news_data' выполнен. (ID: {short_id})"
+                )
 
-                    logger.info(
-                        f"[DB] [save_rss_item_to_db] RSS-элемент успешно сохранен в БД (ID: {short_id}). Переводы будут обработаны отдельно."
-                    )
-                    return news_id
+                logger.info(
+                    f"[DB] [save_rss_item_to_db] RSS-элемент успешно сохранен в БД (ID: {short_id}). Переводы будут обработаны отдельно."
+                )
+                return news_id
 
         except Exception as e:
             logger.error(f"[DB] [save_rss_item_to_db] Ошибка сохранения RSS-элемента: {e}")
@@ -1160,61 +1150,60 @@ class RSSManager:
         try:
             pool = await self.get_pool()
             unprocessed_rss_items = []
-            async with pool.acquire() as conn:
-                async with conn.cursor() as cur:
-                    # Получаем необработанные RSS-элементы без переводов
-                    query = """
-                    SELECT
-                        nd.news_id,
-                        nd.original_title,
-                        nd.original_content,
-                        nd.original_language,
-                        nd.image_filename,
-                        nd.category_id,
-                        nd.rss_feed_id,
-                        nd.telegram_published_at,
-                        nd.created_at,
-                        nd.updated_at,
-                        c.name as category_name,
-                        s.name as source_name,
-                        nd.source_url as source_url
-                    FROM published_news_data nd
-                    LEFT JOIN categories c ON nd.category_id = c.id
-                    LEFT JOIN rss_feeds rf ON nd.rss_feed_id = rf.id
-                    LEFT JOIN sources s ON rf.source_id = s.id
-                    LEFT JOIN news_translations nt ON nd.news_id = nt.news_id
-                    WHERE nt.news_id IS NULL OR nt.translated_title IS NULL OR nt.translated_content IS NULL
-                    ORDER BY nd.created_at DESC
-                    LIMIT 100
-                    """
-                    await cur.execute(query)
-                    results = []
-                    async for row in cur:
-                        results.append(row)
+            async with pool.acquire() as conn, conn.cursor() as cur:
+                # Получаем необработанные RSS-элементы без переводов
+                query = """
+                SELECT
+                    nd.news_id,
+                    nd.original_title,
+                    nd.original_content,
+                    nd.original_language,
+                    nd.image_filename,
+                    nd.category_id,
+                    nd.rss_feed_id,
+                    nd.telegram_published_at,
+                    nd.created_at,
+                    nd.updated_at,
+                    c.name as category_name,
+                    s.name as source_name,
+                    nd.source_url as source_url
+                FROM published_news_data nd
+                LEFT JOIN categories c ON nd.category_id = c.id
+                LEFT JOIN rss_feeds rf ON nd.rss_feed_id = rf.id
+                LEFT JOIN sources s ON rf.source_id = s.id
+                LEFT JOIN news_translations nt ON nd.news_id = nt.news_id
+                WHERE nt.news_id IS NULL OR nt.translated_title IS NULL OR nt.translated_content IS NULL
+                ORDER BY nd.created_at DESC
+                LIMIT 100
+                """
+                await cur.execute(query)
+                results = []
+                async for row in cur:
+                    results.append(row)
 
-                    # Получаем названия колонок
-                    columns = [desc[0] for desc in cur.description]
+                # Получаем названия колонок
+                columns = [desc[0] for desc in cur.description]
 
-                    for row in results:
-                        row_dict = dict(zip(columns, row, strict=False))
-                        # Создаем структуру RSS-элемента для бота
-                        rss_item = {
-                            "news_id": row_dict["news_id"],
-                            "title": row_dict["original_title"],
-                            "description": row_dict["original_content"],
-                            "lang": row_dict["original_language"],
-                            "category": row_dict["category_name"],
-                            "source": row_dict["source_name"],
-                            "link": row_dict["source_url"],
-                            "published": row_dict["created_at"],  # Используем created_at как published
-                            "image_filename": row_dict["image_filename"],
-                            # Переводы будут добавлены ниже
-                            "translations": {},
-                        }
-                        # Добавляем заглушку для published если она отсутствует
-                        if "published" not in rss_item:
-                            rss_item["published"] = datetime.now(pytz.utc)
-                        unprocessed_rss_items.append(rss_item)
+                for row in results:
+                    row_dict = dict(zip(columns, row, strict=False))
+                    # Создаем структуру RSS-элемента для бота
+                    rss_item = {
+                        "news_id": row_dict["news_id"],
+                        "title": row_dict["original_title"],
+                        "description": row_dict["original_content"],
+                        "lang": row_dict["original_language"],
+                        "category": row_dict["category_name"],
+                        "source": row_dict["source_name"],
+                        "link": row_dict["source_url"],
+                        "published": row_dict["created_at"],  # Используем created_at как published
+                        "image_filename": row_dict["image_filename"],
+                        # Переводы будут добавлены ниже
+                        "translations": {},
+                    }
+                    # Добавляем заглушку для published если она отсутствует
+                    if "published" not in rss_item:
+                        rss_item["published"] = datetime.now(pytz.utc)
+                    unprocessed_rss_items.append(rss_item)
             return unprocessed_rss_items
         except Exception as e:
             logger.error(f"[DB] [ERROR] Ошибка при получении необработанных RSS-элементов: {e}")

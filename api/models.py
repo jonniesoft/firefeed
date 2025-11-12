@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Generic, TypeVar
+from typing import TypeVar
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -45,7 +45,7 @@ class LanguageItem(BaseModel):
     language: str
 
 
-class PaginatedResponse(BaseModel, Generic[T]):
+class PaginatedResponse[T](BaseModel):
     count: int
     results: list[T]
 

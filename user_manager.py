@@ -17,71 +17,69 @@ class UserManager(DatabaseMixin):
     @db_operation
     async def _get_user_settings(self, pool, user_id):
         """Асинхронный метод: Возвращает все настройки пользователя."""
-        async with pool.acquire() as conn:
-            async with conn.cursor() as cur:
-                await cur.execute("SELECT subscriptions, language FROM user_preferences WHERE user_id = %s", (user_id,))
-                result = await cur.fetchone()
+        async with pool.acquire() as conn, conn.cursor() as cur:
+            await cur.execute("SELECT subscriptions, language FROM user_preferences WHERE user_id = %s", (user_id,))
+            result = await cur.fetchone()
 
-                if result:
-                    subscriptions = json.loads(result[0]) if result[0] else []
-                    logger.debug(
-                        f"[DB] [UserManager] Получены настройки для пользователя {user_id}: subscriptions={subscriptions}, language={result[1]}"
-                    )
-                    return {"subscriptions": subscriptions, "language": result[1]}
+            if result:
+                subscriptions = json.loads(result[0]) if result[0] else []
                 logger.debug(
-                    f"[DB] [UserManager] Настройки для пользователя {user_id} не найдены, возвращаем по умолчанию"
+                    f"[DB] [UserManager] Получены настройки для пользователя {user_id}: subscriptions={subscriptions}, language={result[1]}"
                 )
-                return {"subscriptions": [], "language": "en"}
+                return {"subscriptions": subscriptions, "language": result[1]}
+            logger.debug(
+                f"[DB] [UserManager] Настройки для пользователя {user_id} не найдены, возвращаем по умолчанию"
+            )
+            return {"subscriptions": [], "language": "en"}
 
     @db_operation
     async def _save_user_settings(self, pool, user_id, subscriptions, language):
         """Асинхронный метод: Сохраняет все настройки пользователя."""
-        async with pool.acquire() as conn:
-            async with conn.cursor() as cur:
-                # First try to update existing record
+        async with pool.acquire() as conn, conn.cursor() as cur:
+            # First try to update existing record
+            await cur.execute(
+                """
+                UPDATE user_preferences
+                SET subscriptions = %s, language = %s
+                WHERE user_id = %s
+            """,
+                (json.dumps(subscriptions), language, user_id),
+            )
+
+            # If no rows were updated, insert new record
+            if cur.rowcount == 0:
+                # First ensure user exists in users table
                 await cur.execute(
                     """
-                    UPDATE user_preferences
-                    SET subscriptions = %s, language = %s
-                    WHERE user_id = %s
+                    INSERT INTO users (id, email, password_hash, language, is_active, created_at, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (id) DO NOTHING
                 """,
-                    (json.dumps(subscriptions), language, user_id),
+                    (
+                        user_id,
+                        f"user{user_id}@telegram.bot",
+                        "dummy_hash",
+                        language,
+                        True,
+                        datetime.now(UTC),
+                        datetime.now(UTC),
+                    ),
                 )
 
-                # If no rows were updated, insert new record
-                if cur.rowcount == 0:
-                    # First ensure user exists in users table
-                    await cur.execute(
-                        """
-                        INSERT INTO users (id, email, password_hash, language, is_active, created_at, updated_at)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s)
-                        ON CONFLICT (id) DO NOTHING
-                    """,
-                        (
-                            user_id,
-                            f"user{user_id}@telegram.bot",
-                            "dummy_hash",
-                            language,
-                            True,
-                            datetime.now(UTC),
-                            datetime.now(UTC),
-                        ),
-                    )
-
-                    # Now insert preferences
-                    await cur.execute(
-                        """
-                        INSERT INTO user_preferences (user_id, subscriptions, language)
-                        VALUES (%s, %s, %s)
-                    """,
-                        (user_id, json.dumps(subscriptions), language),
-                    )
-
-                # В aiopg транзакции управляются автоматически, commit не нужен
-                logger.debug(
-                    f"[DB] [UserManager] Сохранены настройки для пользователя {user_id}: subscriptions={subscriptions}, language={language}"
+                # Now insert preferences
+                await cur.execute(
+                    """
+                    INSERT INTO user_preferences (user_id, subscriptions, language)
+                    VALUES (%s, %s, %s)
+                """,
+                    (user_id, json.dumps(subscriptions), language),
                 )
-                return True
+
+            # В aiopg транзакции управляются автоматически, commit не нужен
+            logger.debug(
+                f"[DB] [UserManager] Сохранены настройки для пользователя {user_id}: subscriptions={subscriptions}, language={language}"
+            )
+            return True
 
     @db_operation
     async def _set_user_language(self, pool, user_id, lang_code):
@@ -101,31 +99,30 @@ class UserManager(DatabaseMixin):
     @db_operation
     async def _get_subscribers_for_category(self, pool, category):
         """Асинхронный метод: Получает подписчиков для определенной категории."""
-        async with pool.acquire() as conn:
-            async with conn.cursor() as cur:
-                await cur.execute(
-                    """
-                    SELECT user_id, subscriptions, language
-                    FROM user_preferences
+        async with pool.acquire() as conn, conn.cursor() as cur:
+            await cur.execute(
                 """
-                )
+                SELECT user_id, subscriptions, language
+                FROM user_preferences
+            """
+            )
 
-                subscribers = []
-                async for row in cur:
-                    user_id, subscriptions_json, language = row
+            subscribers = []
+            async for row in cur:
+                user_id, subscriptions_json, language = row
 
-                    try:
-                        subscriptions_list = json.loads(subscriptions_json) if subscriptions_json else []
+                try:
+                    subscriptions_list = json.loads(subscriptions_json) if subscriptions_json else []
 
-                        if "all" in subscriptions_list or category in subscriptions_list:
-                            user = {"id": user_id, "language_code": language if language else "en"}
-                            subscribers.append(user)
+                    if "all" in subscriptions_list or category in subscriptions_list:
+                        user = {"id": user_id, "language_code": language if language else "en"}
+                        subscribers.append(user)
 
-                    except json.JSONDecodeError:
-                        logger.warning(f"[DB] [UserManager] Invalid JSON for user {user_id}: {subscriptions_json}")
-                        continue
+                except json.JSONDecodeError:
+                    logger.warning(f"[DB] [UserManager] Invalid JSON for user {user_id}: {subscriptions_json}")
+                    continue
 
-                return subscribers
+            return subscribers
 
     @db_operation
     async def _get_all_users(self, pool):
@@ -180,61 +177,59 @@ class UserManager(DatabaseMixin):
         import secrets
 
         link_code = secrets.token_urlsafe(16)
-        async with pool.acquire() as conn:
-            async with conn.cursor() as cur:
-                # Удаляем старые коды для этого пользователя
-                await cur.execute(
-                    "DELETE FROM user_telegram_links WHERE user_id = %s AND linked_at IS NULL", (user_id,)
-                )
-                # Создаем новый код
-                await cur.execute(
-                    """
-                    INSERT INTO user_telegram_links (user_id, link_code, created_at)
-                    VALUES (%s, %s, %s)
-                """,
-                    (user_id, link_code, datetime.now(UTC)),
-                )
-                return link_code
+        async with pool.acquire() as conn, conn.cursor() as cur:
+            # Удаляем старые коды для этого пользователя
+            await cur.execute(
+                "DELETE FROM user_telegram_links WHERE user_id = %s AND linked_at IS NULL", (user_id,)
+            )
+            # Создаем новый код
+            await cur.execute(
+                """
+                INSERT INTO user_telegram_links (user_id, link_code, created_at)
+                VALUES (%s, %s, %s)
+            """,
+                (user_id, link_code, datetime.now(UTC)),
+            )
+            return link_code
 
     @db_operation
     async def confirm_telegram_link(self, pool, telegram_id: int, link_code: str) -> bool:
         """Подтверждает привязку Telegram аккаунта по коду"""
-        async with pool.acquire() as conn:
-            async with conn.cursor() as cur:
-                # Находим запись с кодом
-                await cur.execute(
-                    """
-                    SELECT user_id FROM user_telegram_links
-                    WHERE link_code = %s AND linked_at IS NULL
-                    AND created_at > %s
-                """,
-                    (link_code, datetime.now(UTC) - timedelta(hours=24)),
-                )
+        async with pool.acquire() as conn, conn.cursor() as cur:
+            # Находим запись с кодом
+            await cur.execute(
+                """
+                SELECT user_id FROM user_telegram_links
+                WHERE link_code = %s AND linked_at IS NULL
+                AND created_at > %s
+            """,
+                (link_code, datetime.now(UTC) - timedelta(hours=24)),
+            )
 
-                result = await cur.fetchone()
-                if not result:
-                    return False
+            result = await cur.fetchone()
+            if not result:
+                return False
 
-                result[0]
+            result[0]
 
-                # Проверяем, не привязан ли уже этот Telegram ID
-                await cur.execute(
-                    "SELECT 1 FROM user_telegram_links WHERE telegram_id = %s AND linked_at IS NOT NULL", (telegram_id,)
-                )
-                if await cur.fetchone():
-                    return False  # Уже привязан
+            # Проверяем, не привязан ли уже этот Telegram ID
+            await cur.execute(
+                "SELECT 1 FROM user_telegram_links WHERE telegram_id = %s AND linked_at IS NOT NULL", (telegram_id,)
+            )
+            if await cur.fetchone():
+                return False  # Уже привязан
 
-                # Обновляем запись
-                await cur.execute(
-                    """
-                    UPDATE user_telegram_links
-                    SET telegram_id = %s, linked_at = %s
-                    WHERE link_code = %s
-                """,
-                    (telegram_id, datetime.now(UTC), link_code),
-                )
+            # Обновляем запись
+            await cur.execute(
+                """
+                UPDATE user_telegram_links
+                SET telegram_id = %s, linked_at = %s
+                WHERE link_code = %s
+            """,
+                (telegram_id, datetime.now(UTC), link_code),
+            )
 
-                return True
+            return True
 
     @db_operation
     async def get_user_by_telegram_id(self, pool, telegram_id: int) -> dict[str, Any] | None:
@@ -258,9 +253,8 @@ class UserManager(DatabaseMixin):
     @db_operation
     async def unlink_telegram(self, pool, user_id: int) -> bool:
         """Отвязывает Telegram аккаунт от пользователя"""
-        async with pool.acquire() as conn:
-            async with conn.cursor() as cur:
-                await cur.execute(
-                    "UPDATE user_telegram_links SET linked_at = NULL, telegram_id = NULL WHERE user_id = %s", (user_id,)
-                )
-                return cur.rowcount > 0
+        async with pool.acquire() as conn, conn.cursor() as cur:
+            await cur.execute(
+                "UPDATE user_telegram_links SET linked_at = NULL, telegram_id = NULL WHERE user_id = %s", (user_id,)
+            )
+            return cur.rowcount > 0

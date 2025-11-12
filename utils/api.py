@@ -1,4 +1,4 @@
-from typing import Generic, TypeVar
+from typing import TypeVar
 
 from pydantic import BaseModel
 
@@ -29,7 +29,7 @@ class APIResponse(BaseModel):
         return {"error": message, "status_code": status_code}
 
 
-class PaginatedResponse(BaseModel, Generic[T]):
+class PaginatedResponse[T](BaseModel):
     """Стандартизированная модель для пагинированных ответов"""
 
     count: int

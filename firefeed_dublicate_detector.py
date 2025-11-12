@@ -156,36 +156,35 @@ class FireFeedDuplicateDetector(DatabaseMixin):
             if pool is None:
                 pool = await self.get_pool()
 
-            async with pool.acquire() as conn:
-                async with conn.cursor() as cur:
-                    if current_rss_item_id:
-                        # Исключаем текущий RSS-элемент из поиска
-                        await cur.execute(
-                            """
-                            SELECT news_id, original_title, original_content, embedding
-                            FROM published_news_data
-                            WHERE embedding IS NOT NULL
-                            AND news_id != %s
-                            ORDER BY embedding <-> %s::vector
-                            LIMIT %s
-                        """,
-                            (current_rss_item_id, embedding, limit),
-                        )
-                    else:
-                        # Если ID не предоставлен, ищем среди всех RSS-элементов
-                        await cur.execute(
-                            """
-                            SELECT news_id, original_title, original_content, embedding
-                            FROM published_news_data
-                            WHERE embedding IS NOT NULL
-                            ORDER BY embedding <-> %s::vector
-                            LIMIT %s
-                        """,
-                            (embedding, limit),
-                        )
+            async with pool.acquire() as conn, conn.cursor() as cur:
+                if current_rss_item_id:
+                    # Исключаем текущий RSS-элемент из поиска
+                    await cur.execute(
+                        """
+                        SELECT news_id, original_title, original_content, embedding
+                        FROM published_news_data
+                        WHERE embedding IS NOT NULL
+                        AND news_id != %s
+                        ORDER BY embedding <-> %s::vector
+                        LIMIT %s
+                    """,
+                        (current_rss_item_id, embedding, limit),
+                    )
+                else:
+                    # Если ID не предоставлен, ищем среди всех RSS-элементов
+                    await cur.execute(
+                        """
+                        SELECT news_id, original_title, original_content, embedding
+                        FROM published_news_data
+                        WHERE embedding IS NOT NULL
+                        ORDER BY embedding <-> %s::vector
+                        LIMIT %s
+                    """,
+                        (embedding, limit),
+                    )
 
-                    results = await cur.fetchall()
-                    return [dict(zip([column[0] for column in cur.description], row, strict=False)) for row in results]
+                results = await cur.fetchall()
+                return [dict(zip([column[0] for column in cur.description], row, strict=False)) for row in results]
         except Exception as e:
             logger.error(f"[DUBLICATE_DETECTOR] Ошибка при поиске похожих RSS-элементов: {e}")
             raise
@@ -351,28 +350,26 @@ class FireFeedDuplicateDetector(DatabaseMixin):
             Список словарей с данными RSS-элементов (news_id, original_title, original_content).
         """
         pool = await self.get_pool()
-        async with pool.acquire() as conn:
-            async with conn.cursor() as cur:
+        async with pool.acquire() as conn, conn.cursor() as cur:
+            query = """
+                SELECT news_id, original_title, original_content
+                FROM published_news_data
+                WHERE embedding IS NULL
+                ORDER BY created_at ASC -- Обрабатываем самые старые записи первыми
+                LIMIT %s
+            """
+            await cur.execute(query, (limit,))
+            results = await cur.fetchall()
 
-                query = """
-                    SELECT news_id, original_title, original_content
-                    FROM published_news_data
-                    WHERE embedding IS NULL
-                    ORDER BY created_at ASC -- Обрабатываем самые старые записи первыми
-                    LIMIT %s
-                """
-                await cur.execute(query, (limit,))
-                results = await cur.fetchall()
+            # Получаем имена колонок
+            # cur.description доступен после execute
+            column_names = [desc[0] for desc in cur.description]
 
-                # Получаем имена колонок
-                # cur.description доступен после execute
-                column_names = [desc[0] for desc in cur.description]
+            # Преобразуем результаты в список словарей
+            rss_items_list = [dict(zip(column_names, row, strict=False)) for row in results]
 
-                # Преобразуем результаты в список словарей
-                rss_items_list = [dict(zip(column_names, row, strict=False)) for row in results]
-
-                logger.info(f"[BATCH_EMBEDDING] Получено {len(rss_items_list)} RSS-элементов без эмбеддингов.")
-                return rss_items_list
+            logger.info(f"[BATCH_EMBEDDING] Получено {len(rss_items_list)} RSS-элементов без эмбеддингов.")
+            return rss_items_list
 
     async def process_single_rss_item_batch(self, rss_item: dict[str, Any], lang_code: str = "en") -> bool:
         """
@@ -470,7 +467,7 @@ class FireFeedDuplicateDetector(DatabaseMixin):
         logger.info("[BATCH_EMBEDDING] Запуск непрерывной пакетной обработки...")
         while True:
             try:
-                success, errors = await self.process_missing_embeddings_batch(
+                _success, _errors = await self.process_missing_embeddings_batch(
                     batch_size=batch_size, delay_between_items=delay_between_items
                 )
                 # Даже если обработано 0 новостей, всё равно ждем перед следующей итерацией
