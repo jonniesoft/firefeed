@@ -1,7 +1,6 @@
 # bot.py
 import asyncio
 import logging
-import os
 import re
 import sys
 from dataclasses import dataclass

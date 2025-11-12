@@ -48,7 +48,7 @@ router = APIRouter(
 )
 @limiter.limit("300/minute")
 async def get_user_categories(
-    
+
 _request: Request,
     current_user: dict = Depends(get_current_user),
     source_ids: list[int] | None = Query(None, description="Filter by associated source IDs"),
