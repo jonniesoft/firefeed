@@ -29,9 +29,8 @@ def process_rss_items_results(results, columns, display_language, original_langu
     for row in results:
         row_dict = dict(zip(columns, row, strict=False))
         translations = build_translations_dict(row_dict)
-        if display_language is not None and original_language and display_language != original_language:
-            if not translations or display_language not in translations:
-                continue
+        if display_language is not None and original_language and display_language != original_language and (not translations or display_language not in translations):
+            continue
         if display_language is not None and original_language:
             translations[original_language] = {
                 "title": row_dict["original_title"],
@@ -141,7 +140,7 @@ async def get_rss_items(
         raise HTTPException(status_code=500, detail="Ошибка подключения к базе данных")
 
     try:
-        total_count, results, columns = await database.get_all_rss_items_list(
+        _total_count, results, columns = await database.get_all_rss_items_list(
             pool,
             display_language,
             original_language,

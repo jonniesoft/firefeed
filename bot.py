@@ -3,6 +3,7 @@ import asyncio
 import logging
 import re
 import sys
+from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -71,20 +72,19 @@ async def mark_translation_as_published(translation_id: int, channel_id: int, me
     try:
         # Получаем общий пул подключений
         db_pool = await get_shared_db_pool()
-        async with db_pool.acquire() as connection:
-            async with connection.cursor() as cursor:
-                query = """
-                    INSERT INTO rss_items_telegram_published
-                    (translation_id, channel_id, message_id, published_at)
-                    VALUES (%s, %s, %s, NOW())
-                    ON CONFLICT (translation_id, channel_id)
-                    DO UPDATE SET
-                        message_id = EXCLUDED.message_id,
-                        published_at = NOW()
-                """
-                await cursor.execute(query, (translation_id, channel_id, message_id))
-                logger.info(f"Перевод {translation_id} помечен как опубликованный в канале {channel_id}")
-                return True
+        async with db_pool.acquire() as connection, connection.cursor() as cursor:
+            query = """
+                INSERT INTO rss_items_telegram_published
+                (translation_id, channel_id, message_id, published_at)
+                VALUES (%s, %s, %s, NOW())
+                ON CONFLICT (translation_id, channel_id)
+                DO UPDATE SET
+                    message_id = EXCLUDED.message_id,
+                    published_at = NOW()
+            """
+            await cursor.execute(query, (translation_id, channel_id, message_id))
+            logger.info(f"Перевод {translation_id} помечен как опубликованный в канале {channel_id}")
+            return True
     except Exception as e:
         logger.error(f"Ошибка при пометке перевода {translation_id} как опубликованного: {e}")
         return False
@@ -95,20 +95,19 @@ async def mark_original_as_published(news_id: str, channel_id: int, message_id: 
     try:
         # Получаем общий пул подключений
         db_pool = await get_shared_db_pool()
-        async with db_pool.acquire() as connection:
-            async with connection.cursor() as cursor:
-                query = """
-                    INSERT INTO rss_items_telegram_published_originals
-                    (news_id, channel_id, message_id, created_at)
-                    VALUES (%s, %s, %s, NOW())
-                    ON CONFLICT (news_id, channel_id)
-                    DO UPDATE SET
-                        message_id = EXCLUDED.message_id,
-                        created_at = NOW()
-                """
-                await cursor.execute(query, (news_id, channel_id, message_id))
-                logger.info(f"Оригинальная новость {news_id} помечена как опубликованная в канале {channel_id}")
-                return True
+        async with db_pool.acquire() as connection, connection.cursor() as cursor:
+            query = """
+                INSERT INTO rss_items_telegram_published_originals
+                (news_id, channel_id, message_id, created_at)
+                VALUES (%s, %s, %s, NOW())
+                ON CONFLICT (news_id, channel_id)
+                DO UPDATE SET
+                    message_id = EXCLUDED.message_id,
+                    created_at = NOW()
+            """
+            await cursor.execute(query, (news_id, channel_id, message_id))
+            logger.info(f"Оригинальная новость {news_id} помечена как опубликованная в канале {channel_id}")
+            return True
     except Exception as e:
         logger.error(f"Ошибка при пометке оригинальной новости {news_id} как опубликованной: {e}")
         return False
@@ -393,10 +392,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             else:
                 current_subs.append(category)
             state["current_subs"] = current_subs
-            try:
+            with suppress(Exception):
                 await query.message.delete()
-            except Exception:
-                pass
             await _show_settings_menu_from_callback(context.bot, query.message.chat_id, user_id)
         elif query.data == "save_settings":
             # Save category names as strings
@@ -406,10 +403,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             result = await user_manager.save_user_settings(user_id, state["current_subs"], state["language"])
             logger.info(f"Save result for user {user_id}: {result}")
             USER_STATES.pop(user_id, None)
-            try:
+            with suppress(Exception):
                 await query.message.delete()
-            except Exception:
-                pass
             user = await context.bot.get_chat(user_id)
             welcome_text = (
                 get_message("settings_saved", current_lang)
@@ -425,10 +420,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await set_current_user_language(user_id, lang)
             if user_id in USER_STATES:
                 USER_STATES[user_id]["language"] = lang
-            try:
+            with suppress(Exception):
                 await query.message.delete()
-            except Exception:
-                pass
             user = await context.bot.get_chat(user_id)
             welcome_text = (
                 get_message("language_changed", lang, language=LANG_NAMES.get(lang, "English"))

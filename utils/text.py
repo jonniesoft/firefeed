@@ -1,6 +1,7 @@
 import html
 import logging
 import re
+from contextlib import suppress
 
 logger = logging.getLogger(__name__)
 
@@ -26,11 +27,9 @@ class TextProcessor:
         clean_text = re.sub(r"<[^>]*>", "", clean_text)
 
         # Декодируем HTML-сущности
-        try:
+        # Если html.unescape падает, оставляем как есть
+        with suppress(Exception):
             clean_text = html.unescape(clean_text)
-        except Exception:
-            # Если html.unescape падает, оставляем как есть
-            pass
 
         # Нормализуем пробелы
         clean_text = re.sub(r"\s+", " ", clean_text)

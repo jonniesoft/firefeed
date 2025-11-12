@@ -172,7 +172,7 @@ class FireFeedTranslator:
         # 5. Исправление заглавных букв в начале предложения
         sentences = re.split(r"([.!?]+)", text)
         processed = []
-        for i, part in enumerate(sentences):
+        for _i, part in enumerate(sentences):
             if part.strip() and part[0].isalpha():
                 processed.append(part[0].upper() + part[1:])
             else:
@@ -248,11 +248,7 @@ class FireFeedTranslator:
             return True
 
         # Проверка на повторяющиеся паттерны типа "five-year five"
-        for i in range(len(words) - 1):
-            if words[i] in words[i + 1] and len(words[i]) > 3:
-                return True
-
-        return False
+        return any(words[i] in words[i + 1] and len(words[i]) > 3 for i in range(len(words) - 1))
 
     def _check_translation_language(self, translated_text, target_lang):
         """Проверяет, что перевод содержит символы целевого языка или не содержит чужих"""
@@ -685,7 +681,7 @@ class FireFeedTranslator:
             return texts
 
         # Подготавливаем предложения
-        all_sentences, text_indices, sentence_counts = self._prepare_sentences_for_batch(texts, source_lang)
+        all_sentences, _text_indices, sentence_counts = self._prepare_sentences_for_batch(texts, source_lang)
         if not all_sentences:
             return texts
 
@@ -819,10 +815,7 @@ class FireFeedTranslator:
                 src_lang = original_lang
                 results = translation_results.get((src_lang, target_lang), [])
                 for field_type, translated_text in results:
-                    if field_type == "title":
-                        original_text = clean_title
-                    else:  # content
-                        original_text = clean_content
+                    original_text = clean_title if field_type == "title" else clean_content
 
                     # Проверяем, что перевод отличается от оригинала
                     if translated_text.strip() == original_text.strip():

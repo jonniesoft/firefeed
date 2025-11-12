@@ -49,44 +49,43 @@ class ImageProcessor:
 
             # Используем aiohttp для асинхронного скачивания
             timeout = aiohttp.ClientTimeout(total=10)
-            async with aiohttp.ClientSession(timeout=timeout) as session:
-                async with session.get(url, headers=headers) as response:
-                    response.raise_for_status()
+            async with aiohttp.ClientSession(timeout=timeout) as session, session.get(url, headers=headers) as response:
+                response.raise_for_status()
 
-                    content_type = response.headers.get("Content-Type", "").lower()
-                    content_lower = content_type.lower()
-                    extension = ".jpg"
+                content_type = response.headers.get("Content-Type", "").lower()
+                content_lower = content_type.lower()
+                extension = ".jpg"
 
-                    # Проверяем content_type
-                    for ext in IMAGE_FILE_EXTENSIONS:
-                        if ext[1:] in content_lower:
-                            extension = ext
-                            break
-                    else:
-                        # Проверяем URL
-                        parsed_url = urlparse(url)
-                        path = parsed_url.path
-                        if path.lower().endswith(tuple(IMAGE_FILE_EXTENSIONS)):
-                            extension = Path(path).suffix.lower()
+                # Проверяем content_type
+                for ext in IMAGE_FILE_EXTENSIONS:
+                    if ext[1:] in content_lower:
+                        extension = ext
+                        break
+                else:
+                    # Проверяем URL
+                    parsed_url = urlparse(url)
+                    path = parsed_url.path
+                    if path.lower().endswith(tuple(IMAGE_FILE_EXTENSIONS)):
+                        extension = Path(path).suffix.lower()
 
-                    safe_rss_item_id = "".join(c for c in str(rss_item_id) if c.isalnum() or c in ("-", "_")).rstrip()
-                    if not safe_rss_item_id:
-                        safe_rss_item_id = hashlib.md5(url.encode()).hexdigest()
+                safe_rss_item_id = "".join(c for c in str(rss_item_id) if c.isalnum() or c in ("-", "_")).rstrip()
+                if not safe_rss_item_id:
+                    safe_rss_item_id = hashlib.md5(url.encode()).hexdigest()
 
-                    filename = f"{safe_rss_item_id}{extension}"
-                    file_path = full_save_directory / filename
+                filename = f"{safe_rss_item_id}{extension}"
+                file_path = full_save_directory / filename
 
-                    # Проверяем, существует ли файл уже
-                    if file_path.exists():
-                        logger.info(f"[LOG] Изображение уже существует на сервере: {file_path}")
-                        return str(file_path)
+                # Проверяем, существует ли файл уже
+                if file_path.exists():
+                    logger.info(f"[LOG] Изображение уже существует на сервере: {file_path}")
+                    return str(file_path)
 
-                    # Читаем контент асинхронно
-                    content = await response.read()
+                # Читаем контент асинхронно
+                content = await response.read()
 
-                    # Сохраняем файл асинхронно
-                    with file_path.open("wb") as f:
-                        f.write(content)
+                # Сохраняем файл асинхронно
+                with file_path.open("wb") as f:
+                    f.write(content)
 
             logger.info(f"[LOG] Изображение успешно сохранено: {file_path}")
             return str(file_path)
@@ -122,10 +121,9 @@ class ImageProcessor:
             }
 
             timeout = aiohttp.ClientTimeout(total=10)
-            async with aiohttp.ClientSession(timeout=timeout) as session:
-                async with session.get(url, headers=headers) as response:
-                    response.raise_for_status()
-                    html_content = await response.text()
+            async with aiohttp.ClientSession(timeout=timeout) as session, session.get(url, headers=headers) as response:
+                response.raise_for_status()
+                html_content = await response.text()
 
             soup = BeautifulSoup(html_content, "html.parser")
 

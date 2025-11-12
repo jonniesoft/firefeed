@@ -93,9 +93,7 @@ def validate_rss_url(url: str) -> bool:
         if parsed.scheme not in ['http', 'https']:
             return False
         # Basic domain validation
-        if not re.match(r'^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', parsed.netloc.split(':')[0]):
-            return False
-        return True
+        return bool(re.match(r'^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', parsed.netloc.split(':')[0]))
     except Exception:
         return False
 

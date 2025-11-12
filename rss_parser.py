@@ -244,7 +244,7 @@ class RSSParserService:
         # Дожидаемся завершения отмененных задач
         if tasks_to_cancel:
             logger.info(f"[RSS_PARSER] Ожидание завершения {len(tasks_to_cancel)} отмененных задач...")
-            done, pending = await asyncio.wait(tasks_to_cancel, timeout=5.0)  # Таймаут 5 секунд
+            _done, pending = await asyncio.wait(tasks_to_cancel, timeout=5.0)  # Таймаут 5 секунд
             if pending:
                 logger.warning(f"[RSS_PARSER] Предупреждение: {len(pending)} задач не завершились за таймаут.")
             else:

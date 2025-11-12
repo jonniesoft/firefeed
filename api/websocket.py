@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+from contextlib import suppress
 from datetime import datetime
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
@@ -71,10 +72,8 @@ async def websocket_endpoint(websocket: WebSocket):
         pass
     except Exception as e:
         logger.error(f"[WebSocket] Unexpected error: {e}")
-        try:
+        with suppress(Exception):
             await websocket.close()
-        except Exception:
-            pass
     finally:
         async with active_connections_lock:
             active_connections.pop(websocket, None)
