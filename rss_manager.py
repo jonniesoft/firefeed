@@ -386,9 +386,6 @@ class RSSManager:
             from firefeed_dublicate_detector import FireFeedDuplicateDetector
 
             detector = FireFeedDuplicateDetector()
-            # Генерируем временный ID для проверки (не сохраняем в БД)
-            "temp_" + str(hash(f"{title}_{content}_{link}"))
-
             is_duplicate, duplicate_info = await detector.is_duplicate_strict(title, content, link, lang)
 
             if is_duplicate:

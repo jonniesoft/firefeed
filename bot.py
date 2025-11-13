@@ -204,7 +204,7 @@ async def api_get(endpoint: str, params: dict | None = None) -> dict:
         else:
             processed_params = params
 
-        timeout = aiohttp.ClientTimeout(total=10)  # Таймаут 10 секунд для API запросов
+        timeout = aiohttp.ClientTimeout()  # Таймаут 10 секунд для API запросов
         async with http_session.get(url, params=processed_params, timeout=timeout) as response:
             if response.status == 200:
                 return await response.json()
@@ -716,7 +716,10 @@ async def post_to_channel(bot, prepared_rss_item: PreparedRSSItem):
                     f"\n{TRANSLATED_FROM_LABELS.get(target_lang, '[AI] Translated from')} {original_lang.upper()}\n"
                 )
                 # Получаем ID перевода для отслеживания публикации
-                translation_id = await get_translation_id(news_id, target_lang)
+                if news_id is None:
+                    logger.warning(f"Не найден news_id для получения перевода")
+                    return
+                translation_id = await get_translation_id(str(news_id), target_lang)
                 if translation_id is None:
                     logger.warning(f"Не найден ID перевода для {news_id} на {target_lang}")
                     return
@@ -794,7 +797,10 @@ async def post_to_channel(bot, prepared_rss_item: PreparedRSSItem):
                 await mark_translation_as_published(translation_id, int(channel_id), message_id)
             else:
                 # Это оригинальная новость
-                await mark_original_as_published(news_id, int(channel_id), message_id)
+                if news_id is None:
+                    logger.warning(f"Не найден news_id, пропускаем публикацию")
+                    continue
+                await mark_original_as_published(str(news_id), int(channel_id), message_id)
 
             logger.info(f"Опубликовано в {channel_id}: {title[:50]}...")
             # Не выходим, продолжаем для других каналов, где есть переводы
@@ -907,7 +913,7 @@ async def initialize_http_session():
     if http_session is None:
         # Добавляем повторные попытки и таймауты для более надежного соединения
         connector = aiohttp.TCPConnector(limit=100, limit_per_host=30, keepalive_timeout=30)
-        timeout = aiohttp.ClientTimeout(total=15)
+        timeout = aiohttp.ClientTimeout()
         http_session = aiohttp.ClientSession(
             connector=connector, timeout=timeout, headers={"User-Agent": "TelegramBot/1.0"}
         )

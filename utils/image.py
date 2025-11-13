@@ -48,7 +48,7 @@ class ImageProcessor:
             }
 
             # Используем aiohttp для асинхронного скачивания
-            timeout = aiohttp.ClientTimeout(total=10)
+            timeout = aiohttp.ClientTimeout()
             async with aiohttp.ClientSession(timeout=timeout) as session, session.get(url, headers=headers) as response:
                 response.raise_for_status()
 
@@ -120,7 +120,7 @@ class ImageProcessor:
                 "Upgrade-Insecure-Requests": "1",
             }
 
-            timeout = aiohttp.ClientTimeout(total=10)
+            timeout = aiohttp.ClientTimeout()
             async with aiohttp.ClientSession(timeout=timeout) as session, session.get(url, headers=headers) as response:
                 response.raise_for_status()
                 html_content = await response.text()
