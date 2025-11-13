@@ -41,7 +41,6 @@ coverage.xml
 *.py,cover
 cover/
 .DS_Store
-.env.*
 .envrc
 # AI assistant tools
 .serena/
