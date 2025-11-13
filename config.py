@@ -11,6 +11,9 @@ load_dotenv()
 # Уровень логирования по умолчанию, переопределяемый через env var
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
+# Supported languages for translations
+SUPPORTED_LANGUAGES = ["en", "ru", "de", "fr"]
+
 # Конфигурация подключения к БД
 DB_CONFIG = {
     "host": os.getenv("DB_HOST", "localhost"),

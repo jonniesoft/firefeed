@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
@@ -122,11 +123,14 @@ async def get_rss_items(
     _include_all_translations: bool | None = Query(None),
     cursor_published_at: int | None = Query(None),
     cursor_rss_item_id: str | None = Query(None),
-    limit: int | None = Query(50, le=100, gt=0),
-    offset: int | None = Query(0, ge=0),
+    limit: int = Query(50, le=100, gt=0),
+    offset: int = Query(0, ge=0),
 ):
+    # Determine if all translations should be included
     if display_language is None:
         include_all_translations = True
+    else:
+        include_all_translations = _include_all_translations or False
 
     # Sanitize search phrase
     if search_phrase:
@@ -142,14 +146,14 @@ async def get_rss_items(
     try:
         _total_count, results, columns = await database.get_all_rss_items_list(
             pool,
-            display_language,
+            display_language or "",
             original_language,
             category_id,
             source_id,
             telegram_published,
             from_datetime,
             search_phrase,
-            include_all_translations or False,
+            include_all_translations,
             before_published_at,
             cursor_rss_item_id,
             limit,
@@ -201,7 +205,10 @@ async def get_rss_item_by_id(__request: Request, rss_item_id: str):
         if not full_result or not full_result[0]:
             raise HTTPException(status_code=404, detail="News item not found")
         row, columns = full_result
-        row_dict = dict(zip(columns, row, strict=False))
+        # Type safety: ensure row is not None after the check
+        if row is None:
+            raise HTTPException(status_code=404, detail="News item not found")
+        row_dict: dict[str, Any] = dict(zip(columns, row, strict=False))
         item_data = {
             "news_id": row_dict["news_id"],
             "original_title": row_dict["original_title"],
@@ -259,8 +266,8 @@ async def get_rss_item_by_id(__request: Request, rss_item_id: str):
 @limiter.limit("300/minute")
 async def get_categories(
     _request: Request,
-    limit: int | None = Query(100, le=1000, gt=0),
-    offset: int | None = Query(0, ge=0),
+    limit: int = Query(100, le=1000, gt=0),
+    offset: int = Query(0, ge=0),
     source_ids: list[int] | None = Query(None),
 ):
     pool = await database.get_db_pool()
@@ -320,8 +327,8 @@ async def get_categories(
 @limiter.limit("300/minute")
 async def get_sources(
     _request: Request,
-    limit: int | None = Query(100, le=1000, gt=0),
-    offset: int | None = Query(0, ge=0),
+    limit: int = Query(100, le=1000, gt=0),
+    offset: int = Query(0, ge=0),
     category_id: list[int] | None = Query(None),
 ):
     pool = await database.get_db_pool()
