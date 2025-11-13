@@ -130,7 +130,7 @@ class TestUserBase:
             UserBase(email="invalid-email", language="en")
 
 
-class TestUserCreate:
+class TestUserCreateOld:
     def test_valid_user_create(self):
         user = UserCreate(email="test@example.com", password="password123", language="en")
         assert user.email == "test@example.com"
@@ -200,7 +200,7 @@ class TestPasswordResetRequest:
         assert request.email == "test@example.com"
 
 
-class TestPasswordResetConfirm:
+class TestPasswordResetConfirmOld:
     def test_valid_password_reset_confirm(self):
         confirm = PasswordResetConfirm(token="abc123", new_password="newpassword123")
         assert confirm.token == "abc123"

@@ -247,9 +247,10 @@ class TestDatabaseFunctions:
         assert result is True
 
     async def test_save_verification_code_success(self, mock_db_session, mock_cur):
+        mock_cur.rowcount = 1
 
         result = await save_verification_code(
-            mock_pool, 1, "123456", datetime.now(UTC) + timedelta(hours=1)
+            mock_db_session, 1, "123456", datetime.now(UTC) + timedelta(hours=1)
         )
         assert result is True
 
@@ -293,9 +294,10 @@ class TestDatabaseFunctions:
         assert result is True
 
     async def test_save_password_reset_token_success(self, mock_db_session, mock_cur):
+        mock_cur.rowcount = 1
 
         result = await save_password_reset_token(
-            mock_pool, 1, "token123", datetime.now(UTC) + timedelta(hours=1)
+            mock_db_session, 1, "token123", datetime.now(UTC) + timedelta(hours=1)
         )
         assert result is True
 
@@ -317,6 +319,7 @@ class TestDatabaseFunctions:
         assert result is True
 
     async def test_update_user_categories_success(self, mock_db_session, mock_cur):
+        mock_cur.rowcount = 1
 
         result = await update_user_categories(mock_db_session, 1, {1, 2, 3})
         assert result is True
@@ -324,7 +327,7 @@ class TestDatabaseFunctions:
     async def test_get_all_category_ids_success(self, mock_db_session, mock_cur):
         mock_cur.fetchall.return_value = [(1,), (2,), (3,)]
 
-        result = await get_all_category_ids(mock_pool)
+        result = await get_all_category_ids(mock_db_session)
         assert result == {1, 2, 3}
 
     async def test_get_user_categories_success(self, mock_db_session, mock_cur):
@@ -359,7 +362,7 @@ class TestDatabaseFunctions:
         ]
 
         result = await create_user_rss_feed(
-            mock_pool, 1, "http://example.com/rss", "Test Feed", 1, "en"
+            mock_db_session, 1, "http://example.com/rss", "Test Feed", 1, "en"
         )
         assert result["name"] == "Test Feed"
 
@@ -446,7 +449,7 @@ class TestDatabaseFunctions:
         assert result is True
 
     async def test_activate_user_and_use_verification_code_success(
-        self, mock_pool, mock_conn, mock_cur
+        self, mock_db_session, mock_cur
     ):
         mock_cur.fetchone.return_value = (1,)
 
@@ -516,7 +519,7 @@ class TestDatabaseFunctions:
         ]
 
         result = await get_recent_rss_items_for_broadcast(
-            mock_pool, datetime.now(UTC) - timedelta(hours=1)
+            mock_db_session, datetime.now(UTC) - timedelta(hours=1)
         )
         assert len(result) == 1
         assert result[0]["news_id"] == "news1"

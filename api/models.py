@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TypeVar
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, validator
 
 # Определяем типовой параметр для Generic
 T = TypeVar("T")
@@ -64,7 +64,35 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    password: str = Field(..., min_length=8)
+    password: str = Field(..., min_length=10)
+
+    @validator('password')
+    def validate_password(cls, v):
+        """Validate password complexity requirements"""
+        if len(v) < 10:
+            raise ValueError('Password must be at least 10 characters long')
+
+        # Check for uppercase letter
+        if not any(c.isupper() for c in v):
+            raise ValueError('Password must contain at least one uppercase letter')
+
+        # Check for digit
+        if not any(c.isdigit() for c in v):
+            raise ValueError('Password must contain at least one digit')
+
+        # Check for special character
+        if not any(c in "!@#$%^&*()_+-=[]{}|;:,.<>?" for c in v):
+            raise ValueError('Password must contain at least one special character')
+
+        # Common passwords check
+        common_passwords = {
+            'password', 'password123', 'qwerty', '123456', '12345678',
+            'abc123', 'password1', 'admin', 'letmein', 'welcome'
+        }
+        if v.lower() in common_passwords:
+            raise ValueError('Password is too common, please choose a stronger password')
+
+        return v
 
 
 class UserLogin(BaseModel):
@@ -103,7 +131,35 @@ class PasswordResetRequest(BaseModel):
 
 class PasswordResetConfirm(BaseModel):
     token: str
-    new_password: str = Field(..., min_length=8)
+    new_password: str = Field(..., min_length=10)
+
+    @validator('new_password')
+    def validate_password(cls, v):
+        """Validate password complexity requirements"""
+        if len(v) < 10:
+            raise ValueError('Password must be at least 10 characters long')
+
+        # Check for uppercase letter
+        if not any(c.isupper() for c in v):
+            raise ValueError('Password must contain at least one uppercase letter')
+
+        # Check for digit
+        if not any(c.isdigit() for c in v):
+            raise ValueError('Password must contain at least one digit')
+
+        # Check for special character
+        if not any(c in "!@#$%^&*()_+-=[]{}|;:,.<>?" for c in v):
+            raise ValueError('Password must contain at least one special character')
+
+        # Common passwords check
+        common_passwords = {
+            'password', 'password123', 'qwerty', '123456', '12345678',
+            'abc123', 'password1', 'admin', 'letmein', 'welcome'
+        }
+        if v.lower() in common_passwords:
+            raise ValueError('Password is too common, please choose a stronger password')
+
+        return v
 
 
 # --- Модели для верификации пользователей ---
