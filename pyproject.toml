@@ -2,6 +2,9 @@
 requires = ["hatchling>=1.25"]
 build-backend = "hatchling.build"
 
+[tool.hatch.build.targets.wheel]
+packages = ["api", "utils"]
+
 [project]
 name = "firefeed"
 version = "1.0.0"
@@ -97,16 +100,8 @@ compile-bytecode = true
 # name = "pytorch"
 # url = "https://download.pytorch.org/whl/cpu"
 
-[tool.hatchling.build.targets.wheel]
-packages = ["api", "utils"]
-only-include = ["api", "utils"]
-
-[tool.hatchling.build.targets.wheel.force-include]
-"bot.py" = "bot.py"
-"rss_parser.py" = "rss_parser.py"
-"rss_manager.py" = "rss_manager.py"
-"config.py" = "config.py"
-"logging_config.py" = "logging_config.py"
+# Build configuration removed - using simple package structure
+# The project has api/ and utils/ packages with root-level modules
 
 [tool.ruff]
 target-version = "py313"
