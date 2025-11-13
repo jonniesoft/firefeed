@@ -44,6 +44,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
             )
         # Get full user data from database
         from api import database
+
         pool = await database.get_db_pool()
         if pool is None:
             raise HTTPException(status_code=500, detail="Database error")
@@ -75,7 +76,7 @@ def sanitize_search_phrase(search_phrase: str) -> str:
         return ""
 
     # Remove potentially dangerous characters and limit length
-    sanitized = re.sub(r'[^\w\s\-.,!?\'"()\[\]{}]', '', search_phrase)
+    sanitized = re.sub(r'[^\w\s\-.,!?\'"()\[\]{}]', "", search_phrase)
     return sanitized.strip()[:200]  # Limit to 200 characters
 
 
@@ -90,10 +91,10 @@ def validate_rss_url(url: str) -> bool:
         if not parsed.scheme or not parsed.netloc:
             return False
         # Only allow http/https
-        if parsed.scheme not in ['http', 'https']:
+        if parsed.scheme not in ["http", "https"]:
             return False
         # Basic domain validation
-        return bool(re.match(r'^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', parsed.netloc.split(':')[0]))
+        return bool(re.match(r"^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", parsed.netloc.split(":")[0]))
     except Exception:
         return False
 
@@ -105,13 +106,12 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         try:
             import hashlib
 
-            SECRET_KEY_LOCAL = getattr(config, "JWT_SECRET_KEY", "your-secret-key-change-in-production")
-            return (
-                hashlib.pbkdf2_hmac(
-                    "sha256", plain_password.encode("utf-8"), SECRET_KEY_LOCAL.encode("utf-8"), 100000
-                )
-                == bytes.fromhex(hashed_password)
+            SECRET_KEY_LOCAL = getattr(
+                config, "JWT_SECRET_KEY", "your-secret-key-change-in-production"
             )
+            return hashlib.pbkdf2_hmac(
+                "sha256", plain_password.encode("utf-8"), SECRET_KEY_LOCAL.encode("utf-8"), 100000
+            ) == bytes.fromhex(hashed_password)
         except (ValueError, TypeError):
             return False
 
@@ -171,7 +171,8 @@ def validate_rss_items_query_params(display_language, from_date, cursor_publishe
             from_datetime = datetime.fromtimestamp(from_date / 1000.0)
         except (ValueError, OSError):
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="Некорректный формат timestamp в параметре from_date"
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Некорректный формат timestamp в параметре from_date",
             )
 
     before_published_at = None

@@ -33,7 +33,9 @@ class CachedModel:
 
 
 class FireFeedTranslator:
-    def __init__(self, device="cpu", max_workers=4, max_concurrent_translations=3, max_cached_models=15):
+    def __init__(
+        self, device="cpu", max_workers=4, max_concurrent_translations=3, max_cached_models=15
+    ):
         """
         Инициализация переводчика
         Args:
@@ -60,7 +62,9 @@ class FireFeedTranslator:
 
         # Загрузка процессора эмбеддингов для семантической проверки
         logger.info("[SEMANTIC] Загрузка процессора эмбеддингов для семантической проверки...")
-        self.embeddings_processor = FireFeedEmbeddingsProcessor("paraphrase-multilingual-mpnet-base-v2", device)
+        self.embeddings_processor = FireFeedEmbeddingsProcessor(
+            "paraphrase-multilingual-mpnet-base-v2", device
+        )
         logger.info("[SEMANTIC] Процессор загружен")
 
         # Статистика использования
@@ -93,7 +97,12 @@ class FireFeedTranslator:
             if target_lang in translations:
                 translated_term = translations[target_lang]
                 if translated_term != eng_term:  # Заменяем только если перевод отличается
-                    text = re.sub(r"\b" + re.escape(eng_term) + r"\b", translated_term, text, flags=re.IGNORECASE)
+                    text = re.sub(
+                        r"\b" + re.escape(eng_term) + r"\b",
+                        translated_term,
+                        text,
+                        flags=re.IGNORECASE,
+                    )
         return text
 
     def _postprocess_text(self, text, target_lang="ru"):
@@ -116,49 +125,440 @@ class FireFeedTranslator:
         # 3. Удаление слишком коротких слов (кроме предлогов и служебных слов)
         short_words = {
             # English
-            "a", "an", "the", "to", "of", "in", "on", "at", "by", "for", "with", "as", "is", "are", "was",
-            "were", "be", "been", "has", "have", "had", "do", "does", "did", "will", "would", "can",
-            "could", "may", "might", "must", "shall", "should", "it", "he", "she", "we", "they", "this",
-            "that", "here", "there", "so", "but", "or", "and", "if", "then", "when", "where", "why",
-            "how", "all", "some", "any", "no", "yes", "not", "very", "just", "only", "also", "even",
-            "too", "much", "many", "few", "more", "most", "less", "least", "good", "bad", "big",
-            "small", "new", "old", "first", "last", "next", "now", "up", "down", "out", "over",
-            "under", "above", "below", "left", "right", "back", "front", "before", "after", "during",
-            "while", "since", "until", "from", "about", "against",
-            "between", "into", "through", "across", "along", "around", "behind", "beside", "beyond",
-            "inside", "outside", "near", "far", "AI"
+            "a",
+            "an",
+            "the",
+            "to",
+            "of",
+            "in",
+            "on",
+            "at",
+            "by",
+            "for",
+            "with",
+            "as",
+            "is",
+            "are",
+            "was",
+            "were",
+            "be",
+            "been",
+            "has",
+            "have",
+            "had",
+            "do",
+            "does",
+            "did",
+            "will",
+            "would",
+            "can",
+            "could",
+            "may",
+            "might",
+            "must",
+            "shall",
+            "should",
+            "it",
+            "he",
+            "she",
+            "we",
+            "they",
+            "this",
+            "that",
+            "here",
+            "there",
+            "so",
+            "but",
+            "or",
+            "and",
+            "if",
+            "then",
+            "when",
+            "where",
+            "why",
+            "how",
+            "all",
+            "some",
+            "any",
+            "no",
+            "yes",
+            "not",
+            "very",
+            "just",
+            "only",
+            "also",
+            "even",
+            "too",
+            "much",
+            "many",
+            "few",
+            "more",
+            "most",
+            "less",
+            "least",
+            "good",
+            "bad",
+            "big",
+            "small",
+            "new",
+            "old",
+            "first",
+            "last",
+            "next",
+            "now",
+            "up",
+            "down",
+            "out",
+            "over",
+            "under",
+            "above",
+            "below",
+            "left",
+            "right",
+            "back",
+            "front",
+            "before",
+            "after",
+            "during",
+            "while",
+            "since",
+            "until",
+            "from",
+            "about",
+            "against",
+            "between",
+            "into",
+            "through",
+            "across",
+            "along",
+            "around",
+            "behind",
+            "beside",
+            "beyond",
+            "inside",
+            "outside",
+            "near",
+            "far",
+            "AI"
             # Russian
-            "и", "в", "на", "с", "по", "из", "к", "от", "у", "о", "а", "но", "да", "или", "что", "как",
-            "где", "когда", "почему", "я", "ты", "он", "она", "оно", "мы", "вы", "они", "это", "тот",
-            "та", "то", "те", "мой", "твой", "его", "её", "наш", "ваш", "их", "кто", "зачем", "ли", "бы", "же", "ни", "нибудь", "либо", "нет", "даже", "уже", "ещё", "тоже", "так", "также", "здесь", "там", "тут", "туда",
-            "сюда", "оттуда", "отсюда", "везде", "нигде", "всегда", "никогда", "иногда", "часто",
-            "редко", "много", "мало", "больше", "меньше", "лучше", "хуже", "хорошо", "плохо",
-            "большой", "маленький", "новый", "старый", "первый", "последний", "следующий", "теперь",
-            "тогда", "вверх", "вниз", "внутри", "снаружи", "спереди", "сзади",
-            "слева", "справа", "перед", "после", "во", "со", "изо", "ко", "ото", "до", "без", "для",
-            "про", "через", "сквозь", "между", "около", "возле", "против", "ради", "благодаря",
-            "согласно", "несмотря", "вопреки", "вследствие", "из-за", "вслед", "вместо", "кроме",
-            "помимо", "сверх", "вдоль", "вокруг", "напротив", "рядом", "близко", "далеко", "ИИ",
+            "и",
+            "в",
+            "на",
+            "с",
+            "по",
+            "из",
+            "к",
+            "от",
+            "у",
+            "о",
+            "а",
+            "но",
+            "да",
+            "или",
+            "что",
+            "как",
+            "где",
+            "когда",
+            "почему",
+            "я",
+            "ты",
+            "он",
+            "она",
+            "оно",
+            "мы",
+            "вы",
+            "они",
+            "это",
+            "тот",
+            "та",
+            "то",
+            "те",
+            "мой",
+            "твой",
+            "его",
+            "её",
+            "наш",
+            "ваш",
+            "их",
+            "кто",
+            "зачем",
+            "ли",
+            "бы",
+            "же",
+            "ни",
+            "нибудь",
+            "либо",
+            "нет",
+            "даже",
+            "уже",
+            "ещё",
+            "тоже",
+            "так",
+            "также",
+            "здесь",
+            "там",
+            "тут",
+            "туда",
+            "сюда",
+            "оттуда",
+            "отсюда",
+            "везде",
+            "нигде",
+            "всегда",
+            "никогда",
+            "иногда",
+            "часто",
+            "редко",
+            "много",
+            "мало",
+            "больше",
+            "меньше",
+            "лучше",
+            "хуже",
+            "хорошо",
+            "плохо",
+            "большой",
+            "маленький",
+            "новый",
+            "старый",
+            "первый",
+            "последний",
+            "следующий",
+            "теперь",
+            "тогда",
+            "вверх",
+            "вниз",
+            "внутри",
+            "снаружи",
+            "спереди",
+            "сзади",
+            "слева",
+            "справа",
+            "перед",
+            "после",
+            "во",
+            "со",
+            "изо",
+            "ко",
+            "ото",
+            "до",
+            "без",
+            "для",
+            "про",
+            "через",
+            "сквозь",
+            "между",
+            "около",
+            "возле",
+            "против",
+            "ради",
+            "благодаря",
+            "согласно",
+            "несмотря",
+            "вопреки",
+            "вследствие",
+            "из-за",
+            "вслед",
+            "вместо",
+            "кроме",
+            "помимо",
+            "сверх",
+            "вдоль",
+            "вокруг",
+            "напротив",
+            "рядом",
+            "близко",
+            "далеко",
+            "ИИ",
             # German
-            "der", "die", "das", "und", "mit", "auf", "für", "von", "zu", "im", "am", "ich", "du",
-            "er", "sie", "es", "wir", "ihr", "dies", "den", "dem", "des",
-            "ein", "eine", "einen", "einem", "eines", "mein", "dein", "sein", "unser", "euer",
-            "wer", "wo", "wann", "warum", "wie", "weshalb", "ob", "wenn", "dann",
-            "hier", "da", "dort", "hin", "her", "überall", "nirgendwo", "immer", "nie", "manchmal",
-            "oft", "selten", "viel", "wenig", "mehr", "weniger", "besser", "schlechter", "gut",
-            "schlecht", "groß", "klein", "neu", "alt", "erster", "letzter", "nächster", "jetzt",
-            "oben", "unten", "innen", "außen", "vorn", "hinten", "links",
-            "rechts", "vor", "nach", "während", "seit", "bis", "bei", "über", "gegen", "zwischen", "aus", "durch", "quer", "entlang", "um", "hinter",
-            "neben", "jenseits", "nahe", "fern", "KI",
+            "der",
+            "die",
+            "das",
+            "und",
+            "mit",
+            "auf",
+            "für",
+            "von",
+            "zu",
+            "im",
+            "am",
+            "ich",
+            "du",
+            "er",
+            "sie",
+            "es",
+            "wir",
+            "ihr",
+            "dies",
+            "den",
+            "dem",
+            "des",
+            "ein",
+            "eine",
+            "einen",
+            "einem",
+            "eines",
+            "mein",
+            "dein",
+            "sein",
+            "unser",
+            "euer",
+            "wer",
+            "wo",
+            "wann",
+            "warum",
+            "wie",
+            "weshalb",
+            "ob",
+            "wenn",
+            "dann",
+            "hier",
+            "da",
+            "dort",
+            "hin",
+            "her",
+            "überall",
+            "nirgendwo",
+            "immer",
+            "nie",
+            "manchmal",
+            "oft",
+            "selten",
+            "viel",
+            "wenig",
+            "mehr",
+            "weniger",
+            "besser",
+            "schlechter",
+            "gut",
+            "schlecht",
+            "groß",
+            "klein",
+            "neu",
+            "alt",
+            "erster",
+            "letzter",
+            "nächster",
+            "jetzt",
+            "oben",
+            "unten",
+            "innen",
+            "außen",
+            "vorn",
+            "hinten",
+            "links",
+            "rechts",
+            "vor",
+            "nach",
+            "während",
+            "seit",
+            "bis",
+            "bei",
+            "über",
+            "gegen",
+            "zwischen",
+            "aus",
+            "durch",
+            "quer",
+            "entlang",
+            "um",
+            "hinter",
+            "neben",
+            "jenseits",
+            "nahe",
+            "fern",
+            "KI",
             # French
-            "le", "la", "les", "et", "avec", "pour", "dans", "je", "tu", "il", "elle", "nous", "vous",
-            "ils", "elles", "ce", "cet", "cette", "ces", "mon", "ton", "son", "notre", "votre",
-            "leur", "qui", "que", "quoi", "où", "quand", "pourquoi", "comment", "si", "alors", "ici", "là", "partout", "nulle", "toujours", "jamais", "parfois", "souvent",
-            "rarement", "beaucoup", "peu", "plus", "moins", "mieux", "pire", "bien", "mal", "grand",
-            "petit", "nouveau", "vieux", "premier", "dernier", "suivant", "maintenant", "haut", "bas", "dedans", "dehors", "devant", "derrière", "gauche", "droite",
-            "avant", "après", "pendant", "depuis", "jusqu", "de", "à", "chez", "sur",
-            "contre", "entre", "hors", "par", "au-dessus", "en-dessous", "à-travers",
-            "le-long", "autour", "à-côté", "au-delà", "près", "loin", "IA"
+            "le",
+            "la",
+            "les",
+            "et",
+            "avec",
+            "pour",
+            "dans",
+            "je",
+            "tu",
+            "il",
+            "elle",
+            "nous",
+            "vous",
+            "ils",
+            "elles",
+            "ce",
+            "cet",
+            "cette",
+            "ces",
+            "mon",
+            "ton",
+            "son",
+            "notre",
+            "votre",
+            "leur",
+            "qui",
+            "que",
+            "quoi",
+            "où",
+            "quand",
+            "pourquoi",
+            "comment",
+            "si",
+            "alors",
+            "ici",
+            "là",
+            "partout",
+            "nulle",
+            "toujours",
+            "jamais",
+            "parfois",
+            "souvent",
+            "rarement",
+            "beaucoup",
+            "peu",
+            "plus",
+            "moins",
+            "mieux",
+            "pire",
+            "bien",
+            "mal",
+            "grand",
+            "petit",
+            "nouveau",
+            "vieux",
+            "premier",
+            "dernier",
+            "suivant",
+            "maintenant",
+            "haut",
+            "bas",
+            "dedans",
+            "dehors",
+            "devant",
+            "derrière",
+            "gauche",
+            "droite",
+            "avant",
+            "après",
+            "pendant",
+            "depuis",
+            "jusqu",
+            "de",
+            "à",
+            "chez",
+            "sur",
+            "contre",
+            "entre",
+            "hors",
+            "par",
+            "au-dessus",
+            "en-dessous",
+            "à-travers",
+            "le-long",
+            "autour",
+            "à-côté",
+            "au-delà",
+            "près",
+            "loin",
+            "IA",
         }
         filtered_words = []
         for word in text.split():
@@ -194,7 +594,9 @@ class FireFeedTranslator:
         for eng, translations in self.terminology_dict.items():
             if target_lang in translations:
                 translated_term = translations[target_lang]
-                text = re.sub(r"\b" + re.escape(eng) + r"\b", translated_term, text, flags=re.IGNORECASE)
+                text = re.sub(
+                    r"\b" + re.escape(eng) + r"\b", translated_term, text, flags=re.IGNORECASE
+                )
 
         # 8. Удаление лишних символов в конце
         text = text.strip(" .,;")
@@ -297,11 +699,17 @@ class FireFeedTranslator:
             threshold = max(0.2, threshold - 0.2)  # Минимум 0.2, снижаем на 0.2
 
             # Генерируем эмбеддинги через процессор
-            original_embedding = self.embeddings_processor.generate_embedding(original_text, lang_code)
-            translated_embedding = self.embeddings_processor.generate_embedding(translated_text, lang_code)
+            original_embedding = self.embeddings_processor.generate_embedding(
+                original_text, lang_code
+            )
+            translated_embedding = self.embeddings_processor.generate_embedding(
+                translated_text, lang_code
+            )
 
             # Считаем сходство
-            similarity = self.embeddings_processor.calculate_similarity(original_embedding, translated_embedding)
+            similarity = self.embeddings_processor.calculate_similarity(
+                original_embedding, translated_embedding
+            )
             logger.debug(
                 f"[SEMANTIC] similarity = {similarity:.4f}, threshold = {threshold:.4f}, original_text = {original_text[:50]}..., translated_text = {translated_text[:50]}..."
             )
@@ -323,7 +731,9 @@ class FireFeedTranslator:
         """Очистка старых моделей при высоком использовании памяти"""
         memory_percent = self._check_memory_usage()
         if memory_percent > 85:  # Если памяти > 85%
-            logger.warning(f"[MEMORY] Высокое использование памяти: {memory_percent}%. Очистка кэша моделей...")
+            logger.warning(
+                f"[MEMORY] Высокое использование памяти: {memory_percent}%. Очистка кэша моделей..."
+            )
             # Очищаем половину кэша
             models_to_remove = len(self.model_cache) // 2
             for _ in range(models_to_remove):
@@ -427,7 +837,9 @@ class FireFeedTranslator:
                 # Валидация модели: тест на легком переводе
                 test_result = self._validate_model(model, tokenizer)
                 if not test_result:
-                    logger.error(f"[MODEL] Валидация модели {model_name} провалилась, модель может быть повреждена")
+                    logger.error(
+                        f"[MODEL] Валидация модели {model_name} провалилась, модель может быть повреждена"
+                    )
                     return None, None
 
                 # Сохраняем в кэш
@@ -443,7 +855,9 @@ class FireFeedTranslator:
                 return model, tokenizer
 
             except Exception as e:
-                logger.error(f"[ERROR] [TRANSLATOR] [{time.time():.3f}] Ошибка загрузки модели {model_name}: {e}")
+                logger.error(
+                    f"[ERROR] [TRANSLATOR] [{time.time():.3f}] Ошибка загрузки модели {model_name}: {e}"
+                )
                 traceback.print_exc()
                 return None, None
 
@@ -469,16 +883,22 @@ class FireFeedTranslator:
                 if any(char in "абвгдеёжзийклмнопрстуфхцчшщъыьэюя" for char in translation.lower()):
                     return True
                 else:
-                    logger.warning(f"[MODEL] Валидация: перевод не содержит русских букв '{translation}'")
+                    logger.warning(
+                        f"[MODEL] Валидация: перевод не содержит русских букв '{translation}'"
+                    )
                     return False
             else:
-                logger.warning(f"[MODEL] Валидация провалилась: пустой или слишком короткий перевод '{translation}'")
+                logger.warning(
+                    f"[MODEL] Валидация провалилась: пустой или слишком короткий перевод '{translation}'"
+                )
                 return False
         except Exception as e:
             logger.error(f"[MODEL] Ошибка валидации модели: {e}")
             return False
 
-    def _translate_with_context_sync(self, texts, source_lang="en", target_lang="ru", context_window=2):
+    def _translate_with_context_sync(
+        self, texts, source_lang="en", target_lang="ru", context_window=2
+    ):
         """
         Синхронная версия translate_with_context для использования в пуле потоков
         """
@@ -524,7 +944,9 @@ class FireFeedTranslator:
         # Предварительная обработка: замена терминов на переводы
         text = self._preprocess_text_with_terminology(text, target_lang)
 
-        logger.debug(f"[TRANSLATOR] [{time.time():.3f}] Прямой перевод {source_lang} -> {target_lang}")
+        logger.debug(
+            f"[TRANSLATOR] [{time.time():.3f}] Прямой перевод {source_lang} -> {target_lang}"
+        )
         logger.debug(f"[TRANSLATOR] [{time.time():.3f}] Токенизация текста...")
 
         # Используем spacy для разбиения на предложения
@@ -537,11 +959,17 @@ class FireFeedTranslator:
 
         logger.debug(f"[TRANSLATOR] [{time.time():.3f}] Получено {len(sentences)} предложений")
 
-        logger.debug(f"[TRANSLATOR] [{time.time():.3f}] Начало перевода с контекстом (окно: {context_window})")
+        logger.debug(
+            f"[TRANSLATOR] [{time.time():.3f}] Начало перевода с контекстом (окно: {context_window})"
+        )
         translate_start = time.time()
-        translated = " ".join(self._translate_with_context_sync(sentences, source_lang, target_lang, context_window))
+        translated = " ".join(
+            self._translate_with_context_sync(sentences, source_lang, target_lang, context_window)
+        )
         translate_time = time.time() - translate_start
-        logger.debug(f"[TRANSLATOR] [{time.time():.3f}] Перевод завершен за {translate_time:.3f} сек")
+        logger.debug(
+            f"[TRANSLATOR] [{time.time():.3f}] Перевод завершен за {translate_time:.3f} сек"
+        )
 
         # Применяем пост-обработку
         result = self._postprocess_text(translated, target_lang)
@@ -551,7 +979,9 @@ class FireFeedTranslator:
         end_time = time.time()
         total_time = end_time - start_time
         self.stats["total_translation_time"] += total_time
-        logger.debug(f"[TRANSLATOR] [{end_time:.3f}] Перевод завершен. Общее время выполнения: {total_time:.3f} сек")
+        logger.debug(
+            f"[TRANSLATOR] [{end_time:.3f}] Перевод завершен. Общее время выполнения: {total_time:.3f} сек"
+        )
         return result
 
     def _get_optimal_batch_size(self):
@@ -587,13 +1017,15 @@ class FireFeedTranslator:
             text_indices.extend([i] * len(sentences))
         return all_sentences, text_indices, sentence_counts
 
-    def _translate_sentence_batches(self, sentences, model, tokenizer, source_lang, target_lang, batch_size, beam_size):
+    def _translate_sentence_batches(
+        self, sentences, model, tokenizer, source_lang, target_lang, batch_size, beam_size
+    ):
         """Переводит батчи предложений"""
         translated_batches = []
         for i in range(0, len(sentences), batch_size):
             batch_sentences = sentences[i : i + batch_size]
             logger.debug(
-                f"[TRANSLATOR] [BATCH] Перевод батча {i//batch_size + 1}/{(len(sentences)-1)//batch_size + 1}: {len(batch_sentences)} предложений"
+                f"[TRANSLATOR] [BATCH] Перевод батча {i // batch_size + 1}/{(len(sentences) - 1) // batch_size + 1}: {len(batch_sentences)} предложений"
             )
 
             # Адаптируем параметры в зависимости от длины текста
@@ -607,7 +1039,9 @@ class FireFeedTranslator:
 
             # Токенизация через Transformers
             tokenizer.src_lang = source_lang
-            encoded = tokenizer(batch_sentences, return_tensors="pt", padding=True, truncation=True).to(self.device)
+            encoded = tokenizer(
+                batch_sentences, return_tensors="pt", padding=True, truncation=True
+            ).to(self.device)
 
             # Перевод через Transformers с target_prefix для M2M100
             generated_tokens = model.generate(
@@ -628,7 +1062,9 @@ class FireFeedTranslator:
                         f"[GIBBERISH] Обнаружен gibberish в батче, пробуем fallback для: '{batch_sentences[j][:50]}...'"
                     )
                     # Fallback: перевод с beam_size=1
-                    fallback_encoded = tokenizer([batch_sentences[j]], return_tensors="pt").to(self.device)
+                    fallback_encoded = tokenizer([batch_sentences[j]], return_tensors="pt").to(
+                        self.device
+                    )
                     fallback_tokens = model.generate(
                         **fallback_encoded,
                         forced_bos_token_id=tokenizer.get_lang_id(target_lang),
@@ -636,7 +1072,9 @@ class FireFeedTranslator:
                         num_beams=1,
                         repetition_penalty=2.0,
                     )
-                    fallback_translation = tokenizer.batch_decode(fallback_tokens, skip_special_tokens=True)[0]
+                    fallback_translation = tokenizer.batch_decode(
+                        fallback_tokens, skip_special_tokens=True
+                    )[0]
                     if not self._is_broken_translation(fallback_translation):
                         batch_translations[j] = fallback_translation
                         logger.info("[FALLBACK] Fallback успешен")
@@ -662,7 +1100,9 @@ class FireFeedTranslator:
                 result_texts[i] = text  # Пустой текст остается пустым
         return [self.text_processor.clean(text) for text in result_texts]
 
-    def _translate_batch_sync(self, texts, source_lang="en", target_lang="ru", _context_window=2, beam_size=None):
+    def _translate_batch_sync(
+        self, texts, source_lang="en", target_lang="ru", _context_window=2, beam_size=None
+    ):
         """Синхронная версия translate_batch для использования в пуле потоков"""
         if not texts:
             return []
@@ -677,11 +1117,15 @@ class FireFeedTranslator:
         # Используем мультиязычную модель m2m100
         model, tokenizer = self._get_model("m2m100")
         if model is None or tokenizer is None:
-            logger.error("[TRANSLATOR] [BATCH] Модель m2m100 не найдена или повреждена, возврат исходных текстов.")
+            logger.error(
+                "[TRANSLATOR] [BATCH] Модель m2m100 не найдена или повреждена, возврат исходных текстов."
+            )
             return texts
 
         # Подготавливаем предложения
-        all_sentences, _text_indices, sentence_counts = self._prepare_sentences_for_batch(texts, source_lang)
+        all_sentences, _text_indices, sentence_counts = self._prepare_sentences_for_batch(
+            texts, source_lang
+        )
         if not all_sentences:
             return texts
 
@@ -698,11 +1142,17 @@ class FireFeedTranslator:
         )
 
         # Собираем результаты
-        cleaned_results = self._assemble_translated_texts(texts, translated_batches, sentence_counts, target_lang)
-        logger.debug(f"[TRANSLATOR] [BATCH] Пакетный перевод завершен. Переведено {len(cleaned_results)} текстов")
+        cleaned_results = self._assemble_translated_texts(
+            texts, translated_batches, sentence_counts, target_lang
+        )
+        logger.debug(
+            f"[TRANSLATOR] [BATCH] Пакетный перевод завершен. Переведено {len(cleaned_results)} текстов"
+        )
         return cleaned_results
 
-    async def translate_async(self, texts, source_lang, target_lang, context_window=2, beam_size=None):
+    async def translate_async(
+        self, texts, source_lang, target_lang, context_window=2, beam_size=None
+    ):
         logger.debug("[TRANSLATOR] [ASYNC] Начало translate_async для задачи")
         """Асинхронный метод перевода с использованием пула потоков"""
         loop = asyncio.get_event_loop()
@@ -725,15 +1175,25 @@ class FireFeedTranslator:
                 self.stats["translations_processed"] += len(texts)
                 return result
             except TimeoutError:
-                logger.error(f"[ERROR] [TRANSLATOR] ТАЙМАУТ (120 сек) для '{source_lang}' -> '{target_lang}'!")
+                logger.error(
+                    f"[ERROR] [TRANSLATOR] ТАЙМАУТ (120 сек) для '{source_lang}' -> '{target_lang}'!"
+                )
                 return texts
             except Exception as e:
-                logger.error(f"[ERROR] [TRANSLATOR] Ошибка при переводе '{source_lang}' -> '{target_lang}': {e}")
+                logger.error(
+                    f"[ERROR] [TRANSLATOR] Ошибка при переводе '{source_lang}' -> '{target_lang}': {e}"
+                )
                 traceback.print_exc()
                 return texts
 
     async def prepare_translations(
-        self, title: str, content: str, original_lang: str, callback=None, error_callback=None, task_id=None
+        self,
+        title: str,
+        content: str,
+        original_lang: str,
+        callback=None,
+        error_callback=None,
+        task_id=None,
     ) -> dict:
         """Подготавливает переводы заголовка, содержания и категории на все целевые языки."""
         start_time = time.time()
@@ -752,7 +1212,9 @@ class FireFeedTranslator:
             # - Обработка оригинального языка -
             # Всегда включаем оригинальный язык в словарь переводов
             translations[original_lang] = {"title": clean_title, "content": clean_content}
-            logger.debug(f"[TRANSLATOR] Оригинальный язык '{original_lang}' включен в результаты без перевода.")
+            logger.debug(
+                f"[TRANSLATOR] Оригинальный язык '{original_lang}' включен в результаты без перевода."
+            )
 
             # - Подготовка и выполнение переводов -
             translation_results = {}
@@ -766,12 +1228,14 @@ class FireFeedTranslator:
                 ]
                 lang_pairs.append((original_lang, target_lang, pairs))
 
-            logger.debug(f"[TRANSLATOR] [BATCH] Подготовлено {len(lang_pairs)} языковых пар для перевода.")
+            logger.debug(
+                f"[TRANSLATOR] [BATCH] Подготовлено {len(lang_pairs)} языковых пар для перевода."
+            )
 
             # Выполняем переводы для каждой языковой пары
             for i, (src_lang, tgt_lang, texts_to_process) in enumerate(lang_pairs):
                 logger.debug(
-                    f"[TRANSLATOR] [BATCH] [{i+1}/{len(lang_pairs)}] Перевод '{src_lang}' -> '{tgt_lang}': {len(texts_to_process)} текстов"
+                    f"[TRANSLATOR] [BATCH] [{i + 1}/{len(lang_pairs)}] Перевод '{src_lang}' -> '{tgt_lang}': {len(texts_to_process)} текстов"
                 )
                 group_start_time = time.time()
                 try:
@@ -783,17 +1247,21 @@ class FireFeedTranslator:
 
                     group_duration = time.time() - group_start_time
                     logger.debug(
-                        f"[TRANSLATOR] [BATCH] [{i+1}/{len(lang_pairs)}] Группа '{src_lang}' -> '{tgt_lang}' обработана за {group_duration:.2f} сек."
+                        f"[TRANSLATOR] [BATCH] [{i + 1}/{len(lang_pairs)}] Группа '{src_lang}' -> '{tgt_lang}' обработана за {group_duration:.2f} сек."
                     )
 
                     # Сохраняем результаты
                     translation_results[(src_lang, tgt_lang)] = list(
-                        zip([field_type for _, _, _, field_type in texts_to_process], translated_texts, strict=False)
+                        zip(
+                            [field_type for _, _, _, field_type in texts_to_process],
+                            translated_texts,
+                            strict=False,
+                        )
                     )
                 except Exception as e:
                     group_duration = time.time() - group_start_time
                     error_msg = (
-                        f"[ERROR] [TRANSLATOR] [BATCH] [{i+1}/{len(lang_pairs)}] "
+                        f"[ERROR] [TRANSLATOR] [BATCH] [{i + 1}/{len(lang_pairs)}] "
                         f"Критическая ошибка для группы '{src_lang}' -> '{tgt_lang}' "
                         f"за {group_duration:.2f} сек: {e}"
                     )
@@ -801,7 +1269,8 @@ class FireFeedTranslator:
                     traceback.print_exc()
                     # В случае критической ошибки используем оригинальные тексты
                     translation_results[(src_lang, tgt_lang)] = [
-                        (field_type, original_text) for _, _, original_text, field_type in texts_to_process
+                        (field_type, original_text)
+                        for _, _, original_text, field_type in texts_to_process
                     ]
 
             # - Компоновка финальных результатов -
@@ -858,17 +1327,25 @@ class FireFeedTranslator:
                                     f"[GIBBERISH] Обнаружен gibberish, пробуем beam_size=20 для '{field_type}'"
                                 )
                                 fallback_texts_2 = await self.translate_async(
-                                    [original_text], src_lang, tgt_lang, context_window=0, beam_size=20
+                                    [original_text],
+                                    src_lang,
+                                    tgt_lang,
+                                    context_window=0,
+                                    beam_size=20,
                                 )
                                 fallback_text_2 = fallback_texts_2[0] if fallback_texts_2 else ""
                                 if (
                                     fallback_text_2
                                     and fallback_text_2.strip() != original_text.strip()
-                                    and self._check_translation_language(fallback_text_2, target_lang)
+                                    and self._check_translation_language(
+                                        fallback_text_2, target_lang
+                                    )
                                     and self._semantic_check(original_text, fallback_text_2)
                                     and not self._is_broken_translation(fallback_text_2)
                                 ):
-                                    logger.info(f"[FALLBACK2] Второй fallback успешен для '{field_type}'")
+                                    logger.info(
+                                        f"[FALLBACK2] Второй fallback успешен для '{field_type}'"
+                                    )
                                     lang_translations[field_type] = fallback_text_2
                                 else:
                                     # Не добавляем поле, если перевод неудачный
@@ -885,7 +1362,10 @@ class FireFeedTranslator:
                         f"[TRANSLATOR] Перевод на '{target_lang}' успешно добавлен в результаты ({len(lang_translations)} полей)."
                     )
                 else:
-                    warn_msg = f"[WARN] Перевод на '{target_lang}' не добавлен. " f"Нет заголовка или содержания."
+                    warn_msg = (
+                        f"[WARN] Перевод на '{target_lang}' не добавлен. "
+                        f"Нет заголовка или содержания."
+                    )
                     logger.warning(warn_msg)
 
             # Удалить языки с одинаковыми переводами (чтобы не сохранять дубликаты битых переводов)
@@ -894,7 +1374,9 @@ class FireFeedTranslator:
             for lang, data in translations.items():
                 title = data.get("title", "")
                 if title in seen_titles:
-                    logger.warning(f"[TRANSLATOR] Удален дубликат перевода для языка '{lang}' (одинаковый title)")
+                    logger.warning(
+                        f"[TRANSLATOR] Удален дубликат перевода для языка '{lang}' (одинаковый title)"
+                    )
                     to_remove.append(lang)
                 else:
                     seen_titles.add(title)
@@ -934,7 +1416,10 @@ class FireFeedTranslator:
                     # Если есть error_callback, уведомляем об ошибке в callback
                     if error_callback:
                         try:
-                            error_data = {"error": f"Callback execution failed: {cb_error}", "task_id": task_id}
+                            error_data = {
+                                "error": f"Callback execution failed: {cb_error}",
+                                "task_id": task_id,
+                            }
                             if asyncio.iscoroutinefunction(error_callback):
                                 await error_callback(error_data)
                             else:

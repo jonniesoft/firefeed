@@ -54,7 +54,10 @@ class TestTextProcessor:
         assert TextProcessor.validate_length("Hi", min_length=5, max_length=10) is False
 
     def test_validate_length_too_long(self):
-        assert TextProcessor.validate_length("This is a very long text", min_length=1, max_length=10) is False
+        assert (
+            TextProcessor.validate_length("This is a very long text", min_length=1, max_length=10)
+            is False
+        )
 
     def test_remove_duplicates_no_duplicates(self):
         text = "Hello world test"

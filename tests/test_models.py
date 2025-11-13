@@ -234,7 +234,9 @@ class TestSuccessResponse:
 
 class TestUserRSSFeedBase:
     def test_valid_user_rss_feed_base(self):
-        feed = UserRSSFeedBase(url="http://example.com/rss", name="Test Feed", category_id=1, language="en")
+        feed = UserRSSFeedBase(
+            url="http://example.com/rss", name="Test Feed", category_id=1, language="en"
+        )
         assert feed.url == "http://example.com/rss"
         assert feed.name == "Test Feed"
         assert feed.category_id == 1
@@ -296,7 +298,9 @@ class TestTelegramLinkResponse:
 
 class TestTelegramLinkStatusResponse:
     def test_valid_telegram_link_status_response(self):
-        response = TelegramLinkStatusResponse(is_linked=True, telegram_id=12345, linked_at="2023-01-01T00:00:00Z")
+        response = TelegramLinkStatusResponse(
+            is_linked=True, telegram_id=12345, linked_at="2023-01-01T00:00:00Z"
+        )
         assert response.is_linked is True
         assert response.telegram_id == 12345
         assert response.linked_at == "2023-01-01T00:00:00Z"

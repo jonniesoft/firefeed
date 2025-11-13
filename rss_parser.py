@@ -21,7 +21,9 @@ class RSSParserService:
         self.translator = FireFeedTranslator(
             device="cpu", max_workers=3, max_concurrent_translations=2, max_cached_models=10
         )
-        self.translator_queue = FireFeedTranslatorTaskQueue(self.translator, max_workers=2, queue_size=30)
+        self.translator_queue = FireFeedTranslatorTaskQueue(
+            self.translator, max_workers=2, queue_size=30
+        )
 
         self.rss_manager = RSSManager(translator_queue=self.translator_queue)
         self.running = True
@@ -40,7 +42,9 @@ class RSSParserService:
                 # Ждем 15 минут перед следующим парсингом или пока не будет установлен флаг self.running = False
                 for _ in range(900):
                     if not self.running:
-                        logger.info("[RSS_PARSER] [PARSE_TASK] Получен сигнал остановки, завершение задачи парсинга.")
+                        logger.info(
+                            "[RSS_PARSER] [PARSE_TASK] Получен сигнал остановки, завершение задачи парсинга."
+                        )
                         return
                     await asyncio.sleep(1)
 
@@ -68,7 +72,9 @@ class RSSParserService:
             success, errors = await self.duplicate_detector.process_missing_embeddings_batch(
                 batch_size=20, delay_between_items=0.2
             )
-            logger.info(f"[BATCH] Регулярная пакетная обработки завершена. Успешно: {success}, Ошибок: {errors}")
+            logger.info(
+                f"[BATCH] Регулярная пакетная обработки завершена. Успешно: {success}, Ошибок: {errors}"
+            )
         except Exception as e:
             logger.error(f"[ERROR] [BATCH] Ошибка в регулярной пакетной обработке: {e}")
             import traceback
@@ -96,7 +102,9 @@ class RSSParserService:
                 logger.info("[CLEANUP] [CLEANUP_TASK] Задача очистки дубликатов отменена")
                 break
             except Exception as e:
-                logger.error(f"[CLEANUP] [CLEANUP_TASK] Ошибка в фоновой задаче очистки дубликатов: {e}")
+                logger.error(
+                    f"[CLEANUP] [CLEANUP_TASK] Ошибка в фоновой задаче очистки дубликатов: {e}"
+                )
                 import traceback
 
                 traceback.print_exc()
@@ -127,7 +135,9 @@ class RSSParserService:
                 logger.info("[BATCH] [BATCH_TASK] Задача пакетной обработки отменена")
                 break
             except Exception as e:
-                logger.error(f"[BATCH] [BATCH_TASK] Ошибка в фоновой задаче пакетной обработки: {e}")
+                logger.error(
+                    f"[BATCH] [BATCH_TASK] Ошибка в фоновой задаче пакетной обработки: {e}"
+                )
                 import traceback
 
                 traceback.print_exc()
@@ -161,9 +171,12 @@ class RSSParserService:
             # Ждем завершения любой из задач (обычно это не происходит, если running=True)
             # Или завершения по сигналу (который установит running=False и задачи завершатся)
             done, pending = await asyncio.wait(
-                [self.parse_task, self.batch_processor_task, self.cleanup_task], return_when=asyncio.FIRST_COMPLETED
+                [self.parse_task, self.batch_processor_task, self.cleanup_task],
+                return_when=asyncio.FIRST_COMPLETED,
             )
-            logger.info(f"[RSS_PARSER] Одна из задач завершена. Done: {len(done)}, Pending: {len(pending)}")
+            logger.info(
+                f"[RSS_PARSER] Одна из задач завершена. Done: {len(done)}, Pending: {len(pending)}"
+            )
 
             # Отменяем оставшиеся задачи
             for task in pending:
@@ -243,10 +256,14 @@ class RSSParserService:
 
         # Дожидаемся завершения отмененных задач
         if tasks_to_cancel:
-            logger.info(f"[RSS_PARSER] Ожидание завершения {len(tasks_to_cancel)} отмененных задач...")
+            logger.info(
+                f"[RSS_PARSER] Ожидание завершения {len(tasks_to_cancel)} отмененных задач..."
+            )
             _done, pending = await asyncio.wait(tasks_to_cancel, timeout=5.0)  # Таймаут 5 секунд
             if pending:
-                logger.warning(f"[RSS_PARSER] Предупреждение: {len(pending)} задач не завершились за таймаут.")
+                logger.warning(
+                    f"[RSS_PARSER] Предупреждение: {len(pending)} задач не завершились за таймаут."
+                )
             else:
                 logger.info("[RSS_PARSER] Все задачи успешно отменены.")
 
@@ -266,7 +283,10 @@ class RSSParserService:
             # ------------------------------------
 
         # Закрываем менеджеры (заглушки, но оставляем)
-        managers_to_close = [(self.rss_manager, "RSSManager"), (self.duplicate_detector, "FireFeedDuplicateDetector")]
+        managers_to_close = [
+            (self.rss_manager, "RSSManager"),
+            (self.duplicate_detector, "FireFeedDuplicateDetector"),
+        ]
 
         for manager, name in managers_to_close:
             try:

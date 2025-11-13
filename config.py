@@ -87,7 +87,12 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 FIRE_EMOJI = "🔥"
 
 # Словарь ID каналов на разных языках
-CHANNEL_IDS = {"ru": "-1002584789230", "de": "-1002959373215", "fr": "-1002910849909", "en": "-1003035894895"}
+CHANNEL_IDS = {
+    "ru": "-1002584789230",
+    "de": "-1002959373215",
+    "fr": "-1002910849909",
+    "en": "-1003035894895",
+}
 
 CHANNEL_CATEGORIES = {"world", "technology", "lifestyle", "politics", "economy", "autos", "sports"}
 

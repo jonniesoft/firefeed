@@ -45,7 +45,9 @@ class FireFeedTranslatorTaskQueue:
                     self.stats["processed"] += 1
 
                     duration = time.time() - start_time
-                    logger.info(f"[{worker_id}] ✅ Задача {task_id[:20]} завершена за {duration:.2f} сек")
+                    logger.info(
+                        f"[{worker_id}] ✅ Задача {task_id[:20]} завершена за {duration:.2f} сек"
+                    )
                 except Exception as e:
                     # Статистика ошибок
                     self.stats["errors"] += 1
@@ -62,7 +64,9 @@ class FireFeedTranslatorTaskQueue:
                 if not self.queue.empty():
                     self.queue.task_done()
 
-    async def add_task(self, title, content, original_lang, callback=None, error_callback=None, task_id=None):
+    async def add_task(
+        self, title, content, original_lang, callback=None, error_callback=None, task_id=None
+    ):
         """Добавление задачи перевода в очередь"""
         task = {
             "data": {"title": title, "content": content, "original_lang": original_lang},
@@ -99,7 +103,9 @@ class FireFeedTranslatorTaskQueue:
 
         # Ждем завершения с таймаутом
         try:
-            await asyncio.wait_for(asyncio.gather(*self.workers, return_exceptions=True), timeout=10.0)
+            await asyncio.wait_for(
+                asyncio.gather(*self.workers, return_exceptions=True), timeout=10.0
+            )
         except TimeoutError:
             logger.warning("[QUEUE] ⚠️ Принудительная остановка воркеров")
 

@@ -25,7 +25,7 @@ class DatabaseMixin:
         pass
 
 
-def db_operation(
+def db_operation[**P, R](
     func: Callable[Concatenate[Any, Any, P], Awaitable[R]],
 ) -> Callable[Concatenate[Any, P], Awaitable[R | None]]:
     """

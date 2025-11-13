@@ -9,7 +9,7 @@ from typing import Any, TypeVar
 T = TypeVar("T")
 
 
-def safe_get_attr(obj: Any, attr: str, default: T) -> T:
+def safe_get_attr[T](obj: Any, attr: str, default: T) -> T:
     """Safely get attribute from potentially None object.
 
     Args:
@@ -54,7 +54,7 @@ def safe_feed_text(value: Any) -> str:
     return ""
 
 
-def ensure_not_none(value: T | None, name: str) -> T:
+def ensure_not_none[T](value: T | None, name: str) -> T:
     """Assert value is not None, raise ValueError if it is.
 
     Args:

@@ -41,7 +41,9 @@ class SpacyModelCache:
 
         model_name = spacy_model_map.get(lang_code)
         if not model_name:
-            logger.warning(f"[CACHE] Языковая модель для '{lang_code}' не найдена, используем 'en_core_web_sm'")
+            logger.warning(
+                f"[CACHE] Языковая модель для '{lang_code}' не найдена, используем 'en_core_web_sm'"
+            )
             model_name = "en_core_web_sm"
 
         try:
@@ -55,7 +57,9 @@ class SpacyModelCache:
                 # Удаляем наименее недавно использованную модель
                 oldest_lang = self.usage_order.pop(0)
                 del self.models[oldest_lang]
-                logger.info(f"[CACHE] Очищена spacy модель для языка '{oldest_lang}' (превышен лимит кэша)")
+                logger.info(
+                    f"[CACHE] Очищена spacy модель для языка '{oldest_lang}' (превышен лимит кэша)"
+                )
 
             logger.info(f"[CACHE] Загружена spacy модель для языка '{lang_code}': {model_name}")
             return nlp

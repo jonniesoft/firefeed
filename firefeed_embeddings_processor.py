@@ -4,9 +4,9 @@ from typing import Any, ClassVar
 
 import numpy as np
 import spacy
-from spacy.language import Language
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
+from spacy.language import Language
 
 from utils.text import TextProcessor
 
@@ -20,7 +20,12 @@ class FireFeedEmbeddingsProcessor:
     _spacy_cache: ClassVar[dict[str, Any]] = {}
     _spacy_usage_order: ClassVar[list[str]] = []
 
-    def __new__(cls, _model_name: str = "paraphrase-multilingual-MiniLM-L12-v2", _device: str = "cpu", _max_spacy_cache: int = 3):
+    def __new__(
+        cls,
+        _model_name: str = "paraphrase-multilingual-MiniLM-L12-v2",
+        _device: str = "cpu",
+        _max_spacy_cache: int = 3,
+    ):
         """Синглтон паттерн для кэширования моделей"""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
@@ -28,7 +33,10 @@ class FireFeedEmbeddingsProcessor:
         return cls._instance
 
     def __init__(
-        self, model_name: str = "paraphrase-multilingual-MiniLM-L12-v2", device: str = "cpu", max_spacy_cache: int = 3
+        self,
+        model_name: str = "paraphrase-multilingual-MiniLM-L12-v2",
+        device: str = "cpu",
+        max_spacy_cache: int = 3,
     ):
         """
         Инициализация процессора эмбеддингов с кэшированием моделей
@@ -51,7 +59,9 @@ class FireFeedEmbeddingsProcessor:
             logger.info(f"[EMBEDDINGS] Загрузка SentenceTransformer модели: {model_name}")
             self._model_cache[model_key] = SentenceTransformer(model_name, device=device)
         else:
-            logger.info(f"[EMBEDDINGS] Использование кэшированной SentenceTransformer модели: {model_name}")
+            logger.info(
+                f"[EMBEDDINGS] Использование кэшированной SentenceTransformer модели: {model_name}"
+            )
         self.model = self._model_cache[model_key]
 
         self.embedding_dim = self._get_embedding_dimension()
@@ -71,7 +81,9 @@ class FireFeedEmbeddingsProcessor:
             if lang_code in self._spacy_usage_order:
                 self._spacy_usage_order.remove(lang_code)
             self._spacy_usage_order.append(lang_code)
-            logger.info(f"[EMBEDDINGS] Использование кэшированной spacy модели для языка '{lang_code}'")
+            logger.info(
+                f"[EMBEDDINGS] Использование кэшированной spacy модели для языка '{lang_code}'"
+            )
             return self._spacy_cache[lang_code]
 
         spacy_model_map = {
@@ -83,7 +95,9 @@ class FireFeedEmbeddingsProcessor:
 
         model_name = spacy_model_map.get(lang_code)
         if not model_name:
-            logger.warning(f"[EMBEDDINGS] Языковая модель для '{lang_code}' не найдена, используем 'en_core_web_sm'")
+            logger.warning(
+                f"[EMBEDDINGS] Языковая модель для '{lang_code}' не найдена, используем 'en_core_web_sm'"
+            )
             model_name = "en_core_web_sm"
 
         try:
@@ -96,9 +110,13 @@ class FireFeedEmbeddingsProcessor:
                 # Удаляем наименее недавно использованную модель
                 oldest_lang = self._spacy_usage_order.pop(0)
                 del self._spacy_cache[oldest_lang]
-                logger.info(f"[EMBEDDINGS] Очищена spacy модель для языка '{oldest_lang}' (превышен лимит кэша)")
+                logger.info(
+                    f"[EMBEDDINGS] Очищена spacy модель для языка '{oldest_lang}' (превышен лимит кэша)"
+                )
 
-            logger.info(f"[EMBEDDINGS] Загружена spacy модель для языка '{lang_code}': {model_name}")
+            logger.info(
+                f"[EMBEDDINGS] Загружена spacy модель для языка '{lang_code}': {model_name}"
+            )
             return nlp
         except OSError:
             logger.error(
@@ -223,6 +241,8 @@ class FireFeedEmbeddingsProcessor:
         normalized_content = self.normalize_text(content, lang_code)
 
         # Ограничиваем длину содержания
-        content_preview = normalized_content[:500] if len(normalized_content) > 500 else normalized_content
+        content_preview = (
+            normalized_content[:500] if len(normalized_content) > 500 else normalized_content
+        )
 
         return f"{normalized_title} {content_preview}"

@@ -121,7 +121,9 @@ def ensure_user_manager():
 
 
 # --- Функции для работы с БД ---
-async def mark_translation_as_published(translation_id: int, channel_id: int, message_id: int | None = None):
+async def mark_translation_as_published(
+    translation_id: int, channel_id: int, message_id: int | None = None
+):
     """Помечает перевод как опубликованный в Telegram-канале."""
     try:
         # Получаем общий пул подключений
@@ -137,7 +139,9 @@ async def mark_translation_as_published(translation_id: int, channel_id: int, me
                     published_at = NOW()
             """
             await cursor.execute(query, (translation_id, channel_id, message_id))
-            logger.info(f"Перевод {translation_id} помечен как опубликованный в канале {channel_id}")
+            logger.info(
+                f"Перевод {translation_id} помечен как опубликованный в канале {channel_id}"
+            )
             return True
     except Exception as e:
         logger.error(f"Ошибка при пометке перевода {translation_id} как опубликованного: {e}")
@@ -160,7 +164,9 @@ async def mark_original_as_published(news_id: str, channel_id: int, message_id: 
                     created_at = NOW()
             """
             await cursor.execute(query, (news_id, channel_id, message_id))
-            logger.info(f"Оригинальная новость {news_id} помечена как опубликованная в канале {channel_id}")
+            logger.info(
+                f"Оригинальная новость {news_id} помечена как опубликованная в канале {channel_id}"
+            )
             return True
     except Exception as e:
         logger.error(f"Ошибка при пометке оригинальной новости {news_id} как опубликованной: {e}")
@@ -260,8 +266,14 @@ def get_main_menu_keyboard(lang="en"):
     """Создает клавиатуру главного меню."""
     return ReplyKeyboardMarkup(
         [
-            [KeyboardButton(get_message("menu_settings", lang)), KeyboardButton(get_message("menu_help", lang))],
-            [KeyboardButton(get_message("menu_status", lang)), KeyboardButton(get_message("menu_language", lang))],
+            [
+                KeyboardButton(get_message("menu_settings", lang)),
+                KeyboardButton(get_message("menu_help", lang)),
+            ],
+            [
+                KeyboardButton(get_message("menu_status", lang)),
+                KeyboardButton(get_message("menu_language", lang)),
+            ],
         ],
         resize_keyboard=True,
         input_field_placeholder=get_message("menu_placeholder", lang),
@@ -326,7 +338,9 @@ async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if message:
                 await message.reply_text(get_message("settings_error", lang))
             return
-        current_subs = settings["subscriptions"] if isinstance(settings["subscriptions"], list) else []
+        current_subs = (
+            settings["subscriptions"] if isinstance(settings["subscriptions"], list) else []
+        )
         USER_STATES[user_id] = {"current_subs": current_subs, "language": settings["language"]}
         chat = update.effective_chat
         if chat is None:
@@ -351,7 +365,9 @@ async def help_command(update: Update, _context: ContextTypes.DEFAULT_TYPE):
     help_text = get_message("help_text", lang)
     message = get_message_from_update(update)
     if message:
-        await message.reply_text(help_text, parse_mode="HTML", reply_markup=get_main_menu_keyboard(lang))
+        await message.reply_text(
+            help_text, parse_mode="HTML", reply_markup=get_main_menu_keyboard(lang)
+        )
     USER_CURRENT_MENUS[user_id] = "main"
 
 
@@ -378,12 +394,17 @@ async def status_command(update: Update, _context: ContextTypes.DEFAULT_TYPE):
     categories = settings["subscriptions"]
     categories_text = ", ".join(categories) if categories else get_message("no_subscriptions", lang)
     status_text = get_message(
-        "status_text", lang, language=LANG_NAMES.get(settings["language"], "English"), categories=categories_text
+        "status_text",
+        lang,
+        language=LANG_NAMES.get(settings["language"], "English"),
+        categories=categories_text,
     )
 
     message = get_message_from_update(update)
     if message:
-        await message.reply_text(status_text, parse_mode="HTML", reply_markup=get_main_menu_keyboard(lang))
+        await message.reply_text(
+            status_text, parse_mode="HTML", reply_markup=get_main_menu_keyboard(lang)
+        )
 
     USER_CURRENT_MENUS[user_id] = "main"
 
@@ -403,7 +424,9 @@ async def change_language_command(update: Update, _context: ContextTypes.DEFAULT
     ]
     message = get_message_from_update(update)
     if message:
-        await message.reply_text(get_message("language_select", lang), reply_markup=InlineKeyboardMarkup(keyboard))
+        await message.reply_text(
+            get_message("language_select", lang), reply_markup=InlineKeyboardMarkup(keyboard)
+        )
     USER_CURRENT_MENUS[user_id] = "language"
 
 
@@ -422,7 +445,8 @@ async def link_telegram_command(update: Update, context: ContextTypes.DEFAULT_TY
 
     if not context.args:
         await message.reply_text(
-            "Использование: /link <код_привязки>\n\n" "Получите код привязки в личном кабинете на сайте.",
+            "Использование: /link <код_привязки>\n\n"
+            "Получите код привязки в личном кабинете на сайте.",
             reply_markup=get_main_menu_keyboard(lang),
         )
         USER_CURRENT_MENUS[user_id] = "main"
@@ -465,10 +489,18 @@ async def _show_settings_menu(bot, chat_id: int, user_id: int):
             is_selected = category_name in current_subs
             text = f"{'✅ ' if is_selected else '🔲 '}{category_name.capitalize()}"
             keyboard.append([InlineKeyboardButton(text, callback_data=f"toggle_{category_name}")])
-        keyboard.append([InlineKeyboardButton(get_message("save_button", current_lang), callback_data="save_settings")])
+        keyboard.append(
+            [
+                InlineKeyboardButton(
+                    get_message("save_button", current_lang), callback_data="save_settings"
+                )
+            ]
+        )
         reply_markup = InlineKeyboardMarkup(keyboard)
         await bot.send_message(
-            chat_id=chat_id, text=get_message("settings_title", current_lang), reply_markup=reply_markup
+            chat_id=chat_id,
+            text=get_message("settings_title", current_lang),
+            reply_markup=reply_markup,
         )
     except Exception as e:
         logger.error(f"Ошибка в _show_settings_menu для {user_id}: {e}")
@@ -496,7 +528,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if user_id not in USER_STATES:
             subs = await um.get_user_subscriptions(user_id)
             current_subs = subs if isinstance(subs, list) else []
-            USER_STATES[user_id] = {"current_subs": current_subs, "language": await get_current_user_language(user_id)}
+            USER_STATES[user_id] = {
+                "current_subs": current_subs,
+                "language": await get_current_user_language(user_id),
+            }
         state = USER_STATES[user_id]
         current_lang = state["language"]
         data = query.data
@@ -536,7 +571,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 + get_message("welcome", current_lang, user_name=user.first_name)
             )
             await context.bot.send_message(
-                chat_id=user_id, text=welcome_text, reply_markup=get_main_menu_keyboard(current_lang)
+                chat_id=user_id,
+                text=welcome_text,
+                reply_markup=get_main_menu_keyboard(current_lang),
             )
             USER_CURRENT_MENUS[user_id] = "main"
         elif data.startswith("lang_"):
@@ -569,7 +606,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             msg = query.message
             if msg is not None and isinstance(msg, Message):
                 await msg.edit_text(
-                    text=get_message("language_select", current_lang), reply_markup=InlineKeyboardMarkup(keyboard)
+                    text=get_message("language_select", current_lang),
+                    reply_markup=InlineKeyboardMarkup(keyboard),
                 )
             USER_CURRENT_MENUS[user_id] = "language"
     except Exception as e:
@@ -617,10 +655,10 @@ async def debug(update: Update, _context: ContextTypes.DEFAULT_TYPE):
     lang = await get_current_user_language(user_id)
     message = get_message_from_update(update)
     if message:
-        await message.reply_text(get_message("bot_active", lang), reply_markup=get_main_menu_keyboard(lang))
+        await message.reply_text(
+            get_message("bot_active", lang), reply_markup=get_main_menu_keyboard(lang)
+        )
     USER_CURRENT_MENUS[user_id] = "main"
-
-
 
 
 @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=2, max=30))
@@ -629,7 +667,9 @@ async def send_personal_rss_items(bot, prepared_rss_item: PreparedRSSItem):
     global user_manager
     um = ensure_user_manager()
     news_id = prepared_rss_item.original_data.get("id")
-    logger.info(f"Отправка персонального RSS-элемента: {prepared_rss_item.original_data['title'][:50]}...")
+    logger.info(
+        f"Отправка персонального RSS-элемента: {prepared_rss_item.original_data['title'][:50]}..."
+    )
     category = prepared_rss_item.original_data.get("category")
     if not category:
         logger.warning(f"RSS-элемент {news_id} не имеет категории")
@@ -670,9 +710,7 @@ async def send_personal_rss_items(bot, prepared_rss_item: PreparedRSSItem):
 
             lang_note = ""
             if user_lang != original_rss_item_lang:
-                lang_note = (
-                    f"\n🌐 {TRANSLATED_FROM_LABELS.get(user_lang, 'Translated from')} {original_rss_item_lang.upper()}\n"
-                )
+                lang_note = f"\n🌐 {TRANSLATED_FROM_LABELS.get(user_lang, 'Translated from')} {original_rss_item_lang.upper()}\n"
             content_text = (
                 f"🔥 <b>{title_to_send}</b>\n"
                 f"\n{content_to_send}\n"
@@ -702,33 +740,49 @@ async def send_personal_rss_items(bot, prepared_rss_item: PreparedRSSItem):
                     else:
                         caption = caption[:1021] + "..."
                 try:
-                    await bot.send_photo(chat_id=user_id, photo=image_filename, caption=caption, parse_mode="HTML")
+                    await bot.send_photo(
+                        chat_id=user_id, photo=image_filename, caption=caption, parse_mode="HTML"
+                    )
                 except RetryAfter as e:
-                    logger.warning(f"Flood control для пользователя {user_id}, ждем {e.retry_after} секунд")
+                    logger.warning(
+                        f"Flood control для пользователя {user_id}, ждем {e.retry_after} секунд"
+                    )
                     from datetime import timedelta
+
                     if isinstance(e.retry_after, timedelta):
                         sleep_time = e.retry_after.total_seconds() + 1
                     else:
                         sleep_time = float(e.retry_after) + 1
                     await asyncio.sleep(sleep_time)
-                    await bot.send_photo(chat_id=user_id, photo=image_filename, caption=caption, parse_mode="HTML")
+                    await bot.send_photo(
+                        chat_id=user_id, photo=image_filename, caption=caption, parse_mode="HTML"
+                    )
                 except Exception as e:
                     logger.error(f"Ошибка отправки фото пользователю {user_id}: {e}")
             else:
                 try:
                     await bot.send_message(
-                        chat_id=user_id, text=content_text, parse_mode="HTML", disable_web_page_preview=True
+                        chat_id=user_id,
+                        text=content_text,
+                        parse_mode="HTML",
+                        disable_web_page_preview=True,
                     )
                 except RetryAfter as e:
-                    logger.warning(f"Flood control для пользователя {user_id}, ждем {e.retry_after} секунд")
+                    logger.warning(
+                        f"Flood control для пользователя {user_id}, ждем {e.retry_after} секунд"
+                    )
                     from datetime import timedelta
+
                     if isinstance(e.retry_after, timedelta):
                         sleep_time = e.retry_after.total_seconds() + 1
                     else:
                         sleep_time = float(e.retry_after) + 1  # type: ignore
                     await asyncio.sleep(sleep_time)
                     await bot.send_message(
-                        chat_id=user_id, text=content_text, parse_mode="HTML", disable_web_page_preview=True
+                        chat_id=user_id,
+                        text=content_text,
+                        parse_mode="HTML",
+                        disable_web_page_preview=True,
                     )
                 except Exception as e:
                     logger.error(f"Ошибка отправки сообщения пользователю {user_id}: {e}")
@@ -736,7 +790,9 @@ async def send_personal_rss_items(bot, prepared_rss_item: PreparedRSSItem):
             if i < len(subscribers) - 1:
                 await asyncio.sleep(0.5)
         except Exception as e:
-            logger.error(f"Ошибка отправки персонального RSS-элемента пользователю {user.get('id', 'Unknown ID')}: {e}")
+            logger.error(
+                f"Ошибка отправки персонального RSS-элемента пользователю {user.get('id', 'Unknown ID')}: {e}"
+            )
 
 
 @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=2, max=30))
@@ -768,19 +824,19 @@ async def post_to_channel(bot, prepared_rss_item: PreparedRSSItem):
                 translation_data = translations_cache[target_lang]
                 title = TextProcessor.clean(translation_data.get("title", original_title))
                 content = TextProcessor.clean(translation_data.get("content", original_content))
-                lang_note = (
-                    f"\n{TRANSLATED_FROM_LABELS.get(target_lang, '[AI] Translated from')} {original_lang.upper()}\n"
-                )
+                lang_note = f"\n{TRANSLATED_FROM_LABELS.get(target_lang, '[AI] Translated from')} {original_lang.upper()}\n"
                 # Получаем ID перевода для отслеживания публикации
                 if news_id is None:
-                    logger.warning(f"Не найден news_id для получения перевода")
+                    logger.warning("Не найден news_id для получения перевода")
                     return
                 translation_id = await get_translation_id(str(news_id), target_lang)
                 if translation_id is None:
                     logger.warning(f"Не найден ID перевода для {news_id} на {target_lang}")
                     return
                 if not translation_id:
-                    logger.warning(f"Не найден ID перевода для {news_id} на {target_lang}, пропускаем публикацию")
+                    logger.warning(
+                        f"Не найден ID перевода для {news_id} на {target_lang}, пропускаем публикацию"
+                    )
                     continue
             else:
                 # Нет перевода, пропускаем
@@ -792,7 +848,9 @@ async def post_to_channel(bot, prepared_rss_item: PreparedRSSItem):
             if content and content.strip():
                 content_text += f"\n{content}\n"
             if source_url:
-                content_text += f"\n🔗 <a href=\"{source_url}\">{SOURCE_LABELS.get(target_lang, 'Source')}</a>\n"
+                content_text += (
+                    f'\n🔗 <a href="{source_url}">{SOURCE_LABELS.get(target_lang, "Source")}</a>\n'
+                )
             content_text += f"{lang_note}{hashtags}"
             image_filename = prepared_rss_item.image_filename
             logger.debug(f"post_to_channel image_filename = {image_filename}")
@@ -821,8 +879,11 @@ async def post_to_channel(bot, prepared_rss_item: PreparedRSSItem):
                     )
                     message_id = message.message_id
                 except RetryAfter as e:
-                    logger.warning(f"Flood control для канала {channel_id}, ждем {e.retry_after} секунд")
+                    logger.warning(
+                        f"Flood control для канала {channel_id}, ждем {e.retry_after} секунд"
+                    )
                     from datetime import timedelta
+
                     if isinstance(e.retry_after, timedelta):
                         sleep_time = e.retry_after.total_seconds() + 1
                     else:
@@ -838,19 +899,28 @@ async def post_to_channel(bot, prepared_rss_item: PreparedRSSItem):
             else:
                 try:
                     message = await bot.send_message(
-                        chat_id=channel_id, text=content_text, parse_mode="HTML", disable_web_page_preview=True
+                        chat_id=channel_id,
+                        text=content_text,
+                        parse_mode="HTML",
+                        disable_web_page_preview=True,
                     )
                     message_id = message.message_id
                 except RetryAfter as e:
-                    logger.warning(f"Flood control для канала {channel_id}, ждем {e.retry_after} секунд")
+                    logger.warning(
+                        f"Flood control для канала {channel_id}, ждем {e.retry_after} секунд"
+                    )
                     from datetime import timedelta
+
                     if isinstance(e.retry_after, timedelta):
                         sleep_time = e.retry_after.total_seconds() + 1
                     else:
                         sleep_time = float(e.retry_after) + 1
                     await asyncio.sleep(sleep_time)
                     message = await bot.send_message(
-                        chat_id=channel_id, text=content_text, parse_mode="HTML", disable_web_page_preview=True
+                        chat_id=channel_id,
+                        text=content_text,
+                        parse_mode="HTML",
+                        disable_web_page_preview=True,
                     )
                     message_id = message.message_id
                 except Exception as e:
@@ -864,7 +934,7 @@ async def post_to_channel(bot, prepared_rss_item: PreparedRSSItem):
             else:
                 # Это оригинальная новость
                 if news_id is None:
-                    logger.warning(f"Не найден news_id, пропускаем публикацию")
+                    logger.warning("Не найден news_id, пропускаем публикацию")
                     continue
                 await mark_original_as_published(str(news_id), int(channel_id), message_id)
 
@@ -923,10 +993,14 @@ async def process_rss_item(context, rss_item_from_api):
 
         tasks_to_await = []
         if rss_item_from_api.get("category") in CHANNEL_CATEGORIES:
-            logger.info(f"RSS-элемент категории '{rss_item_from_api.get('category')}' подходит для общего канала.")
+            logger.info(
+                f"RSS-элемент категории '{rss_item_from_api.get('category')}' подходит для общего канала."
+            )
             tasks_to_await.append(limited_post_to_channel())
         else:
-            logger.info(f"RSS-элемент категории '{rss_item_from_api.get('category')}' НЕ подходит для общего канала.")
+            logger.info(
+                f"RSS-элемент категории '{rss_item_from_api.get('category')}' НЕ подходит для общего канала."
+            )
 
         tasks_to_await.append(limited_send_personal_rss_items())
 
@@ -946,7 +1020,9 @@ async def monitor_rss_items_task(context: ContextTypes.DEFAULT_TYPE):
     logger.info("Запуск задачи мониторинга RSS-элементов")
     try:
         # Получаем необработанные RSS-элементы через API
-        rss_response = await get_rss_items_list(limit=20, telegram_published="false", include_all_translations="true")
+        rss_response = await get_rss_items_list(
+            limit=20, telegram_published="false", include_all_translations="true"
+        )
         if not isinstance(rss_response, dict):
             logger.error(f"Неверный формат ответа от API: {type(rss_response)}")
             return
@@ -958,7 +1034,9 @@ async def monitor_rss_items_task(context: ContextTypes.DEFAULT_TYPE):
             logger.info("Нет RSS-элементов для обработки.")
             return
 
-        processing_tasks = [process_rss_item(context, rss_item) for rss_item in unprocessed_rss_list]
+        processing_tasks = [
+            process_rss_item(context, rss_item) for rss_item in unprocessed_rss_list
+        ]
 
         logger.info(f"Запуск обработки {len(processing_tasks)} RSS-элементов...")
         try:
@@ -1041,7 +1119,9 @@ def main():
         logger.error("BOT_TOKEN is not configured!")
         return
 
-    application = Application.builder().token(BOT_TOKEN).post_stop(post_stop).post_init(post_init).build()
+    application = (
+        Application.builder().token(BOT_TOKEN).post_stop(post_stop).post_init(post_init).build()
+    )
 
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("settings", settings_command))
@@ -1055,7 +1135,9 @@ def main():
 
     job_queue = application.job_queue
     if job_queue:
-        job_queue.run_repeating(monitor_rss_items_task, interval=300, first=1, job_kwargs={"misfire_grace_time": 600})
+        job_queue.run_repeating(
+            monitor_rss_items_task, interval=300, first=1, job_kwargs={"misfire_grace_time": 600}
+        )
         logger.info("Зарегистрирована задача мониторинга RSS-элементов (каждые 5 минут)")
 
     logger.info("Бот запущен в режиме Webhook")

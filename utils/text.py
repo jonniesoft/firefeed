@@ -71,7 +71,9 @@ class TextProcessor:
         deduped_words = [words[0]]
         for word in words[1:]:
             # Проверяем не только точное совпадение, но и частичное
-            if word.lower() != deduped_words[-1].lower() and not word.lower().startswith(deduped_words[-1].lower()[:3]):
+            if word.lower() != deduped_words[-1].lower() and not word.lower().startswith(
+                deduped_words[-1].lower()[:3]
+            ):
                 deduped_words.append(word)
 
         return " ".join(deduped_words)

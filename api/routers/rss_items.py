@@ -20,17 +20,24 @@ router = APIRouter(
     tags=["rss_items"],
     responses={
         429: {"description": "Too Many Requests - Rate limit exceeded"},
-        500: {"description": "Internal Server Error"}
-    }
+        500: {"description": "Internal Server Error"},
+    },
 )
 
 
-def process_rss_items_results(results, columns, display_language, original_language, _include_all_translations):
+def process_rss_items_results(
+    results, columns, display_language, original_language, _include_all_translations
+):
     rss_items_list = []
     for row in results:
         row_dict = dict(zip(columns, row, strict=False))
         translations = build_translations_dict(row_dict)
-        if display_language is not None and original_language and display_language != original_language and (not translations or display_language not in translations):
+        if (
+            display_language is not None
+            and original_language
+            and display_language != original_language
+            and (not translations or display_language not in translations)
+        ):
             continue
         if display_language is not None and original_language:
             translations[original_language] = {
@@ -97,18 +104,24 @@ def process_rss_items_results(results, columns, display_language, original_langu
                                 "source_url": "https://technews.com/article123",
                                 "published_at": "2024-01-01T12:00:00Z",
                                 "translations": {
-                                    "ru": {"title": "Главные новости", "content": "Полный текст статьи..."},
-                                    "de": {"title": "Wichtige Nachrichten", "content": "Vollständiger Artikeltext..."}
-                                }
+                                    "ru": {
+                                        "title": "Главные новости",
+                                        "content": "Полный текст статьи...",
+                                    },
+                                    "de": {
+                                        "title": "Wichtige Nachrichten",
+                                        "content": "Vollständiger Artikeltext...",
+                                    },
+                                },
                             }
-                        ]
+                        ],
                     }
                 }
-            }
+            },
         },
         429: {"description": "Too Many Requests - Rate limit exceeded"},
-        500: {"description": "Internal Server Error"}
-    }
+        500: {"description": "Internal Server Error"},
+    },
 )
 @limiter.limit("1000/minute")
 async def get_rss_items(
@@ -136,8 +149,12 @@ async def get_rss_items(
     if search_phrase:
         search_phrase = sanitize_search_phrase(search_phrase)
 
-    from_datetime, before_published_at = validate_rss_items_query_params(display_language, from_date, cursor_published_at)
-    page_offset = 0 if (cursor_published_at is not None or cursor_rss_item_id is not None) else offset
+    from_datetime, before_published_at = validate_rss_items_query_params(
+        display_language, from_date, cursor_published_at
+    )
+    page_offset = (
+        0 if (cursor_published_at is not None or cursor_rss_item_id is not None) else offset
+    )
 
     pool = await database.get_db_pool()
     if pool is None:
@@ -163,7 +180,9 @@ async def get_rss_items(
         logger.error(f"[API] Ошибка при выполнении запроса в get_rss_items: {e}")
         raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера")
 
-    rss_items_list = process_rss_items_results(results, columns, display_language, original_language, include_all_translations)
+    rss_items_list = process_rss_items_results(
+        results, columns, display_language, original_language, include_all_translations
+    )
     return {"count": len(rss_items_list), "results": rss_items_list}
 
 
@@ -182,17 +201,11 @@ async def get_rss_items(
     **Rate limit:** 300 requests per minute
     """,
     responses={
-        200: {
-            "description": "RSS item details",
-            "model": models.RSSItem
-        },
-        404: {
-            "description": "Not Found - RSS item not found",
-            "model": models.HTTPError
-        },
+        200: {"description": "RSS item details", "model": models.RSSItem},
+        404: {"description": "Not Found - RSS item not found", "model": models.HTTPError},
         429: {"description": "Too Many Requests - Rate limit exceeded"},
-        500: {"description": "Internal Server Error"}
-    }
+        500: {"description": "Internal Server Error"},
+    },
 )
 @limiter.limit("300/minute")
 async def get_rss_item_by_id(__request: Request, rss_item_id: str):
@@ -253,15 +266,15 @@ async def get_rss_item_by_id(__request: Request, rss_item_id: str):
                         "results": [
                             {"id": 1, "name": "Technology"},
                             {"id": 2, "name": "Politics"},
-                            {"id": 3, "name": "Sports"}
-                        ]
+                            {"id": 3, "name": "Sports"},
+                        ],
                     }
                 }
-            }
+            },
         },
         429: {"description": "Too Many Requests - Rate limit exceeded"},
-        500: {"description": "Internal Server Error"}
-    }
+        500: {"description": "Internal Server Error"},
+    },
 )
 @limiter.limit("300/minute")
 async def get_categories(
@@ -275,7 +288,9 @@ async def get_categories(
         raise HTTPException(status_code=500, detail="Ошибка подключения к базе данных")
 
     try:
-        total_count, results = await database.get_all_categories_list(pool, limit, offset, source_ids)
+        total_count, results = await database.get_all_categories_list(
+            pool, limit, offset, source_ids
+        )
     except Exception as e:
         logger.error(f"[API] Ошибка при выполнении запроса в get_categories: {e}")
         raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера")
@@ -313,16 +328,16 @@ async def get_categories(
                                 "description": "British Broadcasting Corporation",
                                 "alias": "bbc",
                                 "logo": "bbc-logo.png",
-                                "site_url": "https://bbc.com"
+                                "site_url": "https://bbc.com",
                             }
-                        ]
+                        ],
                     }
                 }
-            }
+            },
         },
         429: {"description": "Too Many Requests - Rate limit exceeded"},
-        500: {"description": "Internal Server Error"}
-    }
+        500: {"description": "Internal Server Error"},
+    },
 )
 @limiter.limit("300/minute")
 async def get_sources(
@@ -364,17 +379,11 @@ async def get_sources(
     responses={
         200: {
             "description": "List of supported languages",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "results": ["en", "ru", "de", "fr"]
-                    }
-                }
-            }
+            "content": {"application/json": {"example": {"results": ["en", "ru", "de", "fr"]}}},
         },
         429: {"description": "Too Many Requests - Rate limit exceeded"},
-        500: {"description": "Internal Server Error"}
-    }
+        500: {"description": "Internal Server Error"},
+    },
 )
 @limiter.limit("300/minute")
 async def get_languages(__request: Request):
@@ -407,13 +416,10 @@ async def get_languages(__request: Request):
                     "example": {
                         "status": "ok",
                         "database": "ok",
-                        "db_pool": {
-                            "total_connections": 20,
-                            "free_connections": 15
-                        }
+                        "db_pool": {"total_connections": 20, "free_connections": 15},
                     }
                 }
-            }
+            },
         },
         429: {"description": "Too Many Requests - Rate limit exceeded"},
         500: {
@@ -423,15 +429,12 @@ async def get_languages(__request: Request):
                     "example": {
                         "status": "ok",
                         "database": "error",
-                        "db_pool": {
-                            "total_connections": 0,
-                            "free_connections": 0
-                        }
+                        "db_pool": {"total_connections": 0, "free_connections": 0},
                     }
                 }
-            }
-        }
-    }
+            },
+        },
+    },
 )
 @limiter.limit("300/minute")
 async def health_check(__request: Request):

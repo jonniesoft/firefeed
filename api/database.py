@@ -109,7 +109,7 @@ async def update_user(pool, user_id: int, update_data: dict[str, Any]) -> dict[s
 
             query = f"""
                 UPDATE users
-                SET {', '.join(set_parts)}, updated_at = %s
+                SET {", ".join(set_parts)}, updated_at = %s
                 WHERE id = %s
                 RETURNING id, email, password_hash, language, is_active, created_at, updated_at
                 """
@@ -166,7 +166,9 @@ async def update_user_password(pool, user_id: int, new_hashed_password: str) -> 
 # --- Функции для работы с кодами верификации ---
 
 
-async def save_verification_code(pool, user_id: int, verification_code: str, expires_at: datetime) -> bool:
+async def save_verification_code(
+    pool, user_id: int, verification_code: str, expires_at: datetime
+) -> bool:
     """Сохраняет код верификации для пользователя согласно схеме user_verification_codes.
     Поля: (user_id, verification_code, created_at DEFAULT now(), expires_at, used_at NULL)
     """
@@ -236,11 +238,14 @@ async def mark_verification_code_used(pool, code_id: int) -> bool:
     """Отмечает код верификации как использованный (used_at = NOW())."""
     async with pool.acquire() as conn, conn.cursor() as cur:
         try:
-            await cur.execute("UPDATE user_verification_codes SET used_at = NOW() WHERE id = %s", (code_id,))
+            await cur.execute(
+                "UPDATE user_verification_codes SET used_at = NOW() WHERE id = %s", (code_id,)
+            )
             return cur.rowcount > 0
         except Exception as e:
             logger.error(f"[DB] Error marking verification code used: {e}")
             return False
+
 
 # --- Функции для работы с токенами сброса пароля ---
 
@@ -309,7 +314,8 @@ async def update_user_categories(pool, user_id: int, category_ids: set[int]) -> 
             if category_ids:
                 for cat_id in category_ids:
                     await cur.execute(
-                        "INSERT INTO user_categories (user_id, category_id) VALUES (%s, %s)", (user_id, cat_id)
+                        "INSERT INTO user_categories (user_id, category_id) VALUES (%s, %s)",
+                        (user_id, cat_id),
                     )
 
             # Коммитим транзакцию
@@ -332,7 +338,10 @@ async def get_all_category_ids(pool) -> set[int]:
             logger.error(f"[DB] Error fetching category ids: {e}")
             return set()
 
-async def get_user_categories(pool, user_id: int, source_ids: list[int] | None = None) -> list[dict[str, Any]]:
+
+async def get_user_categories(
+    pool, user_id: int, source_ids: list[int] | None = None
+) -> list[dict[str, Any]]:
     """Получает список категорий пользователя с фильтрацией по source_id"""
     async with pool.acquire() as conn, conn.cursor() as cur:
         try:
@@ -451,7 +460,7 @@ async def update_user_rss_feed(
 
             query = f"""
             UPDATE user_rss_feeds
-            SET {', '.join(set_parts)}, updated_at = %s
+            SET {", ".join(set_parts)}, updated_at = %s
             WHERE user_id = %s AND id = %s
             RETURNING id, user_id, url, name, category_id, language, is_active, created_at, updated_at
             """
@@ -471,7 +480,9 @@ async def delete_user_rss_feed(pool, user_id: int, feed_id: int) -> bool:
     """Удаляет пользовательскую RSS-ленту"""
     async with pool.acquire() as conn, conn.cursor() as cur:
         try:
-            await cur.execute("DELETE FROM user_rss_feeds WHERE user_id = %s AND id = %s", (user_id, feed_id))
+            await cur.execute(
+                "DELETE FROM user_rss_feeds WHERE user_id = %s AND id = %s", (user_id, feed_id)
+            )
             # Проверяем, была ли затронута строка
             return cur.rowcount > 0
         except Exception as e:
@@ -483,7 +494,12 @@ async def delete_user_rss_feed(pool, user_id: int, feed_id: int) -> bool:
 
 
 async def get_user_rss_items_list(
-    pool, user_id: int, display_language: str, original_language: str | None, limit: int, offset: int
+    pool,
+    user_id: int,
+    display_language: str,
+    original_language: str | None,
+    limit: int,
+    offset: int,
 ) -> tuple[int, list[tuple], list[str]]:
     """
     Получает список RSS-элементов для текущего пользователя на основе его подписок.
@@ -592,7 +608,13 @@ async def get_user_rss_items_list(
 
 
 async def get_user_rss_items_list_by_feed(
-    pool, user_id: int, feed_id: int, display_language: str, original_language: str | None, limit: int, offset: int
+    pool,
+    user_id: int,
+    feed_id: int,
+    display_language: str,
+    original_language: str | None,
+    limit: int,
+    offset: int,
 ) -> tuple[int, list[tuple], list[str]]:
     """
     Получает список RSS-элементов из конкретной пользовательской RSS-ленты текущего пользователя.
@@ -840,7 +862,7 @@ async def get_all_rss_items_list(
                 )
 
             query = f"""
-            SELECT {', '.join(select_parts)}
+            SELECT {", ".join(select_parts)}
             FROM published_news_data nd
             {chr(10).join(join_parts)}
             WHERE 1=1
@@ -907,7 +929,9 @@ async def get_all_rss_items_list(
             # Keyset pagination (по убыванию created_at, затем news_id)
             if before_published_at is not None:
                 query += " AND (nd.created_at < %s OR (nd.created_at = %s AND nd.news_id < %s))"
-                params.extend([before_published_at, before_published_at, cursor_news_id or "\uffff"])
+                params.extend(
+                    [before_published_at, before_published_at, cursor_news_id or "\uffff"]
+                )
 
             query += " ORDER BY nd.created_at DESC, nd.news_id DESC LIMIT %s OFFSET %s"
             params.extend([limit, offset])
@@ -1027,7 +1051,9 @@ async def get_all_categories_list(
             raise
 
 
-async def activate_user_and_use_verification_code(pool, user_id: int, verification_code: str) -> bool:
+async def activate_user_and_use_verification_code(
+    pool, user_id: int, verification_code: str
+) -> bool:
     """В одной транзакции активирует пользователя и помечает код верификации как использованный.
     Возвращает True при успехе, False при ошибке или если код не найден/недействителен.
     """
@@ -1047,13 +1073,16 @@ async def activate_user_and_use_verification_code(pool, user_id: int, verificati
                 await cur.execute("ROLLBACK")
                 return False
             await cur.execute("UPDATE users SET is_active = TRUE WHERE id = %s", (user_id,))
-            await cur.execute("UPDATE user_verification_codes SET used_at = NOW() WHERE id = %s", (rec[0],))
+            await cur.execute(
+                "UPDATE user_verification_codes SET used_at = NOW() WHERE id = %s", (rec[0],)
+            )
             await cur.execute("COMMIT")
             return True
         except Exception as e:
             await cur.execute("ROLLBACK")
             logger.error(f"[DB] Error activating user with verification code: {e}")
             return False
+
 
 async def confirm_password_reset_transaction(pool, token: str, new_password_hash: str) -> bool:
     """В одной транзакции проверяет валидность reset-токена, обновляет пароль и удаляет токен."""
@@ -1091,6 +1120,7 @@ async def confirm_password_reset_transaction(pool, token: str, new_password_hash
             logger.error(f"[DB] Error confirming password reset: {e}")
             return False
 
+
 async def get_all_sources_list(
     pool, limit: int, offset: int, category_id: list[int] | None = None
 ) -> tuple[int, list[dict[str, Any]]]:
@@ -1116,7 +1146,9 @@ async def get_all_sources_list(
                     JOIN source_categories sc ON s.id = sc.source_id
                     WHERE sc.category_id = ANY(%s)
                 """
-                full_query_select = base_query_select + join_clause + " ORDER BY s.name LIMIT %s OFFSET %s"
+                full_query_select = (
+                    base_query_select + join_clause + " ORDER BY s.name LIMIT %s OFFSET %s"
+                )
                 full_query_count = base_query_count + join_clause
             else:
                 full_query_select = base_query_select + " ORDER BY s.name LIMIT %s OFFSET %s"
@@ -1150,7 +1182,9 @@ async def get_all_sources_list(
             raise
 
 
-async def get_recent_rss_items_for_broadcast(pool, last_check_time: datetime) -> list[dict[str, Any]]:
+async def get_recent_rss_items_for_broadcast(
+    pool, last_check_time: datetime
+) -> list[dict[str, Any]]:
     """
     Получает список последних RSS-элементов для отправки по WebSocket.
     """
@@ -1200,12 +1234,26 @@ async def get_recent_rss_items_for_broadcast(pool, last_check_time: datetime) ->
                         "original_title": row_dict["original_title"],
                         "original_language": row_dict["original_language"],
                         "category": row_dict["category_name"],
-                        "published_at": row_dict["published_at"].isoformat() if row_dict["published_at"] else None,
+                        "published_at": row_dict["published_at"].isoformat()
+                        if row_dict["published_at"]
+                        else None,
                         "translations": {
-                            "ru": {"title": row_dict.get("title_ru"), "content": row_dict.get("content_ru")},
-                            "en": {"title": row_dict.get("title_en"), "content": row_dict.get("content_en")},
-                            "de": {"title": row_dict.get("title_de"), "content": row_dict.get("content_de")},
-                            "fr": {"title": row_dict.get("title_fr"), "content": row_dict.get("content_fr")},
+                            "ru": {
+                                "title": row_dict.get("title_ru"),
+                                "content": row_dict.get("content_ru"),
+                            },
+                            "en": {
+                                "title": row_dict.get("title_en"),
+                                "content": row_dict.get("content_en"),
+                            },
+                            "de": {
+                                "title": row_dict.get("title_de"),
+                                "content": row_dict.get("content_de"),
+                            },
+                            "fr": {
+                                "title": row_dict.get("title_fr"),
+                                "content": row_dict.get("content_fr"),
+                            },
                         },
                     }
                 )
@@ -1226,4 +1274,3 @@ async def get_telegram_link_status(pool, user_id: int) -> dict[str, Any] | None:
         if result:
             return {"telegram_id": result[0], "linked_at": result[1]}
         return None
-

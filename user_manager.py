@@ -18,7 +18,10 @@ class UserManager(DatabaseMixin):
     async def _get_user_settings(self, pool, user_id):
         """Асинхронный метод: Возвращает все настройки пользователя."""
         async with pool.acquire() as conn, conn.cursor() as cur:
-            await cur.execute("SELECT subscriptions, language FROM user_preferences WHERE user_id = %s", (user_id,))
+            await cur.execute(
+                "SELECT subscriptions, language FROM user_preferences WHERE user_id = %s",
+                (user_id,),
+            )
             result = await cur.fetchone()
 
             if result:
@@ -112,14 +115,18 @@ class UserManager(DatabaseMixin):
                 user_id, subscriptions_json, language = row
 
                 try:
-                    subscriptions_list = json.loads(subscriptions_json) if subscriptions_json else []
+                    subscriptions_list = (
+                        json.loads(subscriptions_json) if subscriptions_json else []
+                    )
 
                     if "all" in subscriptions_list or category in subscriptions_list:
                         user = {"id": user_id, "language_code": language if language else "en"}
                         subscribers.append(user)
 
                 except json.JSONDecodeError:
-                    logger.warning(f"[DB] [UserManager] Invalid JSON for user {user_id}: {subscriptions_json}")
+                    logger.warning(
+                        f"[DB] [UserManager] Invalid JSON for user {user_id}: {subscriptions_json}"
+                    )
                     continue
 
             return subscribers
@@ -184,7 +191,8 @@ class UserManager(DatabaseMixin):
         async with pool.acquire() as conn, conn.cursor() as cur:
             # Удаляем старые коды для этого пользователя
             await cur.execute(
-                "DELETE FROM user_telegram_links WHERE user_id = %s AND linked_at IS NULL", (user_id,)
+                "DELETE FROM user_telegram_links WHERE user_id = %s AND linked_at IS NULL",
+                (user_id,),
             )
             # Создаем новый код
             await cur.execute(
@@ -218,7 +226,8 @@ class UserManager(DatabaseMixin):
 
             # Проверяем, не привязан ли уже этот Telegram ID
             await cur.execute(
-                "SELECT 1 FROM user_telegram_links WHERE telegram_id = %s AND linked_at IS NOT NULL", (telegram_id,)
+                "SELECT 1 FROM user_telegram_links WHERE telegram_id = %s AND linked_at IS NOT NULL",
+                (telegram_id,),
             )
             if await cur.fetchone():
                 return False  # Уже привязан
@@ -259,6 +268,7 @@ class UserManager(DatabaseMixin):
         """Отвязывает Telegram аккаунт от пользователя"""
         async with pool.acquire() as conn, conn.cursor() as cur:
             await cur.execute(
-                "UPDATE user_telegram_links SET linked_at = NULL, telegram_id = NULL WHERE user_id = %s", (user_id,)
+                "UPDATE user_telegram_links SET linked_at = NULL, telegram_id = NULL WHERE user_id = %s",
+                (user_id,),
             )
             return cur.rowcount > 0

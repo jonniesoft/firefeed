@@ -27,7 +27,9 @@ class ImageProcessor:
         :return: путь к сохраненному файлу или None
         """
         if not url or not rss_item_id:
-            logger.debug(f"[DEBUG] Пропущено сохранение изображения: нет URL ({url}) или rss_item_id ({rss_item_id})")
+            logger.debug(
+                f"[DEBUG] Пропущено сохранение изображения: нет URL ({url}) или rss_item_id ({rss_item_id})"
+            )
             return None
 
         try:
@@ -49,7 +51,10 @@ class ImageProcessor:
 
             # Используем aiohttp для асинхронного скачивания
             timeout = aiohttp.ClientTimeout()
-            async with aiohttp.ClientSession(timeout=timeout) as session, session.get(url, headers=headers) as response:
+            async with (
+                aiohttp.ClientSession(timeout=timeout) as session,
+                session.get(url, headers=headers) as response,
+            ):
                 response.raise_for_status()
 
                 content_type = response.headers.get("Content-Type", "").lower()
@@ -68,7 +73,9 @@ class ImageProcessor:
                     if path.lower().endswith(tuple(IMAGE_FILE_EXTENSIONS)):
                         extension = Path(path).suffix.lower()
 
-                safe_rss_item_id = "".join(c for c in str(rss_item_id) if c.isalnum() or c in ("-", "_")).rstrip()
+                safe_rss_item_id = "".join(
+                    c for c in str(rss_item_id) if c.isalnum() or c in ("-", "_")
+                ).rstrip()
                 if not safe_rss_item_id:
                     safe_rss_item_id = hashlib.md5(url.encode()).hexdigest()
 
@@ -96,7 +103,9 @@ class ImageProcessor:
             )
             return None
         except Exception as e:
-            logger.warning(f"[WARN] Неожиданная ошибка при скачивании/сохранении изображения {url}: {e}")
+            logger.warning(
+                f"[WARN] Неожиданная ошибка при скачивании/сохранении изображения {url}: {e}"
+            )
             return None
 
     @staticmethod
@@ -121,7 +130,10 @@ class ImageProcessor:
             }
 
             timeout = aiohttp.ClientTimeout()
-            async with aiohttp.ClientSession(timeout=timeout) as session, session.get(url, headers=headers) as response:
+            async with (
+                aiohttp.ClientSession(timeout=timeout) as session,
+                session.get(url, headers=headers) as response,
+            ):
                 response.raise_for_status()
                 html_content = await response.text()
 

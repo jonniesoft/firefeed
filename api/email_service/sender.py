@@ -23,7 +23,9 @@ class EmailSender:
         template_dir = Path(__file__).parent / "templates"
         self.jinja_env = Environment(loader=FileSystemLoader(template_dir))
 
-    async def send_password_reset_email(self, to_email: str, reset_token: str, language: str = "en") -> bool:
+    async def send_password_reset_email(
+        self, to_email: str, reset_token: str, language: str = "en"
+    ) -> bool:
         """
         Отправляет email с ссылкой для сброса пароля
 
@@ -36,7 +38,9 @@ class EmailSender:
             bool: True если письмо отправлено успешно, False в случае ошибки
         """
         start_ts = datetime.now(UTC)
-        logger.info(f"[EmailSender] Password reset email start: to={to_email} at {start_ts.isoformat()}Z")
+        logger.info(
+            f"[EmailSender] Password reset email start: to={to_email} at {start_ts.isoformat()}Z"
+        )
         try:
             # Создаем сообщение
             message = MIMEMultipart("alternative")
@@ -74,17 +78,25 @@ class EmailSender:
 
             duration = (datetime.now(UTC) - start_ts).total_seconds()
             if duration > 10:
-                logger.warning(f"[EmailSender] Password reset email slow ({duration:.3f}s) to {to_email}")
+                logger.warning(
+                    f"[EmailSender] Password reset email slow ({duration:.3f}s) to {to_email}"
+                )
             else:
-                logger.info(f"[EmailSender] Password reset email sent in {duration:.3f}s to {to_email}")
+                logger.info(
+                    f"[EmailSender] Password reset email sent in {duration:.3f}s to {to_email}"
+                )
             return True
 
         except Exception as e:
             duration = (datetime.now(UTC) - start_ts).total_seconds()
-            logger.error(f"[EmailSender] Failed to send password reset email to {to_email} after {duration:.3f}s: {e!s}")
+            logger.error(
+                f"[EmailSender] Failed to send password reset email to {to_email} after {duration:.3f}s: {e!s}"
+            )
             return False
 
-    async def send_verification_email(self, to_email: str, verification_code: str, language: str = "en") -> bool:
+    async def send_verification_email(
+        self, to_email: str, verification_code: str, language: str = "en"
+    ) -> bool:
         """
         Отправляет email с кодом подтверждения регистрации
 
@@ -97,7 +109,9 @@ class EmailSender:
             bool: True если письмо отправлено успешно, False в случае ошибки
         """
         start_ts = datetime.now(UTC)
-        logger.info(f"[EmailSender] Verification email start: to={to_email} at {start_ts.isoformat()}Z")
+        logger.info(
+            f"[EmailSender] Verification email start: to={to_email} at {start_ts.isoformat()}Z"
+        )
         try:
             # Создаем сообщение
             message = MIMEMultipart("alternative")
@@ -135,14 +149,20 @@ class EmailSender:
 
             duration = (datetime.now(UTC) - start_ts).total_seconds()
             if duration > 10:
-                logger.warning(f"[EmailSender] Verification email slow ({duration:.3f}s) to {to_email}")
+                logger.warning(
+                    f"[EmailSender] Verification email slow ({duration:.3f}s) to {to_email}"
+                )
             else:
-                logger.info(f"[EmailSender] Verification email sent in {duration:.3f}s to {to_email}")
+                logger.info(
+                    f"[EmailSender] Verification email sent in {duration:.3f}s to {to_email}"
+                )
             return True
 
         except Exception as e:
             duration = (datetime.now(UTC) - start_ts).total_seconds()
-            logger.error(f"[EmailSender] Failed to send verification email to {to_email} after {duration:.3f}s: {e!s}")
+            logger.error(
+                f"[EmailSender] Failed to send verification email to {to_email} after {duration:.3f}s: {e!s}"
+            )
             return False
 
     def _get_reset_subject(self, language: str) -> str:
@@ -285,7 +305,9 @@ FireFeed Team
         try:
             # Загружаем и рендерим шаблон
             template = self.jinja_env.get_template(template_name)
-            return template.render(verification_code=verification_code, current_year=datetime.now(UTC).year)
+            return template.render(
+                verification_code=verification_code, current_year=datetime.now(UTC).year
+            )
         except Exception as e:
             logger.error(f"Failed to render template {template_name}: {e!s}")
             # Возвращаем базовый HTML контент если шаблон не найден
@@ -516,7 +538,9 @@ email_sender = EmailSender()
 
 
 # Удобная функция для отправки письма
-async def send_verification_email(to_email: str, verification_code: str, language: str = "en") -> bool:
+async def send_verification_email(
+    to_email: str, verification_code: str, language: str = "en"
+) -> bool:
     """
     Удобная функция для отправки email с кодом подтверждения
 
