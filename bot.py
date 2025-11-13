@@ -167,7 +167,7 @@ async def mark_original_as_published(news_id: str, channel_id: int, message_id: 
         return False
 
 
-async def get_translation_id(news_id: str, language: str) -> int:
+async def get_translation_id(news_id: str, language: str) -> int | None:
     """Получает ID перевода из таблицы news_translations."""
     try:
         db_pool = await get_shared_db_pool()
@@ -204,7 +204,7 @@ async def api_get(endpoint: str, params: dict | None = None) -> dict:
         else:
             processed_params = params
 
-        timeout = aiohttp.ClientTimeout(total=10, connect=5)  # Таймаут 10 секунд для API запросов
+        timeout = aiohttp.ClientTimeout(total=10)  # Таймаут 10 секунд для API запросов
         async with http_session.get(url, params=processed_params, timeout=timeout) as response:
             if response.status == 200:
                 return await response.json()
@@ -300,7 +300,9 @@ async def start_command(update: Update, _context: ContextTypes.DEFAULT_TYPE):
     user_id = user.id
     lang = await get_current_user_language(user_id)
     welcome_text = get_message("welcome", lang, user_name=user.first_name)
-    await update.message.reply_text(welcome_text, reply_markup=get_main_menu_keyboard(lang))
+    message = get_message_from_update(update)
+    if message:
+        await message.reply_text(welcome_text, reply_markup=get_main_menu_keyboard(lang))
     USER_CURRENT_MENUS[user_id] = "main"
 
 
@@ -311,8 +313,14 @@ async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         lang = await get_current_user_language(user_id)
         logger.info(f"Loading settings for user {user_id}")
-        settings = await user_manager.get_user_settings(user_id)
+        um = ensure_user_manager()
+        settings = await um.get_user_settings(user_id)
         logger.info(f"Loaded settings for user {user_id}: {settings}")
+        if settings is None:
+            message = get_message_from_update(update)
+            if message:
+                await message.reply_text(get_message("settings_error", lang))
+            return
         current_subs = settings["subscriptions"] if isinstance(settings["subscriptions"], list) else []
         USER_STATES[user_id] = {"current_subs": current_subs, "language": settings["language"]}
         await _show_settings_menu(context.bot, update.effective_chat.id, user_id)
@@ -320,7 +328,9 @@ async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.error(f"Ошибка команды /settings для {user_id}: {e}")
         lang = await get_current_user_language(user_id)
-        await update.message.reply_text(get_message("settings_error", lang))
+        message = get_message_from_update(update)
+        if message:
+            await message.reply_text(get_message("settings_error", lang))
 
 
 async def help_command(update: Update, _context: ContextTypes.DEFAULT_TYPE):
@@ -328,7 +338,9 @@ async def help_command(update: Update, _context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     lang = await get_current_user_language(user_id)
     help_text = get_message("help_text", lang)
-    await update.message.reply_text(help_text, parse_mode="HTML", reply_markup=get_main_menu_keyboard(lang))
+    message = get_message_from_update(update)
+    if message:
+        await message.reply_text(help_text, parse_mode="HTML", reply_markup=get_main_menu_keyboard(lang))
     USER_CURRENT_MENUS[user_id] = "main"
 
 
@@ -372,7 +384,9 @@ async def change_language_command(update: Update, _context: ContextTypes.DEFAULT
         [InlineKeyboardButton("🇩🇪 Deutsch", callback_data="lang_de")],
         [InlineKeyboardButton("🇫🇷 Français", callback_data="lang_fr")],
     ]
-    await update.message.reply_text(get_message("language_select", lang), reply_markup=InlineKeyboardMarkup(keyboard))
+    message = get_message_from_update(update)
+    if message:
+        await message.reply_text(get_message("language_select", lang), reply_markup=InlineKeyboardMarkup(keyboard))
     USER_CURRENT_MENUS[user_id] = "language"
 
 
@@ -449,12 +463,13 @@ async def _show_settings_menu_from_callback(bot, chat_id: int, user_id: int):
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик callback кнопок."""
     global user_manager
+    um = ensure_user_manager()
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
     try:
         if user_id not in USER_STATES:
-            subs = await user_manager.get_user_subscriptions(user_id)
+            subs = await um.get_user_subscriptions(user_id)
             current_subs = subs if isinstance(subs, list) else []
             USER_STATES[user_id] = {"current_subs": current_subs, "language": await get_current_user_language(user_id)}
         state = USER_STATES[user_id]
@@ -475,7 +490,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.info(
                 f"Saving settings for user {user_id}: subscriptions={state['current_subs']}, language={state['language']}"
             )
-            result = await user_manager.save_user_settings(user_id, state["current_subs"], state["language"])
+            result = await um.save_user_settings(user_id, state["current_subs"], state["language"])
             logger.info(f"Save result for user {user_id}: {result}")
             USER_STATES.pop(user_id, None)
             with suppress(Exception):
@@ -483,7 +498,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             user = await context.bot.get_chat(user_id)
             welcome_text = (
                 get_message("settings_saved", current_lang)
-                + "\n"
+                + "\n\n"
                 + get_message("welcome", current_lang, user_name=user.first_name)
             )
             await context.bot.send_message(
@@ -500,7 +515,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             user = await context.bot.get_chat(user_id)
             welcome_text = (
                 get_message("language_changed", lang, language=LANG_NAMES.get(lang, "English"))
-                + "\n"
+                + "\n\n"
                 + get_message("welcome", lang, user_name=user.first_name)
             )
             await context.bot.send_message(
@@ -534,7 +549,10 @@ async def handle_menu_selection(update: Update, context: ContextTypes.DEFAULT_TY
     """Обработчик выбора пункта меню."""
     user_id = update.effective_user.id
     lang = await get_current_user_language(user_id)
-    text = update.message.text
+    message = get_message_from_update(update)
+    if not message:
+        return
+    text = message.text
     menu_actions = {
         get_message("menu_settings", lang): settings_command,
         get_message("menu_help", lang): help_command,
@@ -545,28 +563,15 @@ async def handle_menu_selection(update: Update, context: ContextTypes.DEFAULT_TY
     if action:
         await action(update, context)
         return
-    all_languages = ["en", "ru", "de", "fr"]
-    for check_lang in all_languages:
-        if text in [get_message(f"menu_{m}", check_lang) for m in ["settings", "help", "status", "language"]]:
-            await set_current_user_language(user_id, check_lang)
-            new_menu_actions = {
-                get_message("menu_settings", check_lang): settings_command,
-                get_message("menu_help", check_lang): help_command,
-                get_message("menu_status", check_lang): status_command,
-                get_message("menu_language", check_lang): change_language_command,
-            }
-            new_action = new_menu_actions.get(text)
-            if new_action:
-                await new_action(update, context)
-            return
-    logger.info(f"Неизвестный выбор меню для {user_id}: {text}")
 
 
 async def debug(update: Update, _context: ContextTypes.DEFAULT_TYPE):
     """Обработчик отладочных сообщений."""
     user_id = update.effective_user.id
     lang = await get_current_user_language(user_id)
-    await update.message.reply_text(get_message("bot_active", lang), reply_markup=get_main_menu_keyboard(lang))
+    message = get_message_from_update(update)
+    if message:
+        await message.reply_text(get_message("bot_active", lang), reply_markup=get_main_menu_keyboard(lang))
     USER_CURRENT_MENUS[user_id] = "main"
 
 
@@ -576,13 +581,14 @@ async def debug(update: Update, _context: ContextTypes.DEFAULT_TYPE):
 async def send_personal_rss_items(bot, prepared_rss_item: PreparedRSSItem):
     """Отправляет персональные RSS-элементы подписчикам."""
     global user_manager
+    um = ensure_user_manager()
     news_id = prepared_rss_item.original_data.get("id")
     logger.info(f"Отправка персонального RSS-элемента: {prepared_rss_item.original_data['title'][:50]}...")
     category = prepared_rss_item.original_data.get("category")
     if not category:
         logger.warning(f"RSS-элемент {news_id} не имеет категории")
         return
-    subscribers = await user_manager.get_subscribers_for_category(category)
+    subscribers = await um.get_subscribers_for_category(category)
     if not subscribers:
         logger.info(f"Нет подписчиков для категории {category}")
         return
@@ -623,7 +629,7 @@ async def send_personal_rss_items(bot, prepared_rss_item: PreparedRSSItem):
                 )
             content_text = (
                 f"🔥 <b>{title_to_send}</b>\n"
-                f"\n\n{content_to_send}\n"
+                f"\n{content_to_send}\n"
                 f"\nFROM: {prepared_rss_item.original_data.get('source', 'Unknown Source')}\n"
                 f"CATEGORY: {category}\n{lang_note}\n"
                 f"⚡ <a href='{prepared_rss_item.original_data.get('link', '#')}'>{READ_MORE_LABELS.get(user_lang, 'Read more')}</a>"
@@ -711,6 +717,9 @@ async def post_to_channel(bot, prepared_rss_item: PreparedRSSItem):
                 )
                 # Получаем ID перевода для отслеживания публикации
                 translation_id = await get_translation_id(news_id, target_lang)
+                if translation_id is None:
+                    logger.warning(f"Не найден ID перевода для {news_id} на {target_lang}")
+                    return
                 if not translation_id:
                     logger.warning(f"Не найден ID перевода для {news_id} на {target_lang}, пропускаем публикацию")
                     continue
@@ -782,10 +791,10 @@ async def post_to_channel(bot, prepared_rss_item: PreparedRSSItem):
             # Помечаем публикацию в БД
             if translation_id:
                 # Это перевод
-                await mark_translation_as_published(translation_id, channel_id, message_id)
+                await mark_translation_as_published(translation_id, int(channel_id), message_id)
             else:
                 # Это оригинальная новость
-                await mark_original_as_published(news_id, channel_id, message_id)
+                await mark_original_as_published(news_id, int(channel_id), message_id)
 
             logger.info(f"Опубликовано в {channel_id}: {title[:50]}...")
             # Не выходим, продолжаем для других каналов, где есть переводы
@@ -898,7 +907,7 @@ async def initialize_http_session():
     if http_session is None:
         # Добавляем повторные попытки и таймауты для более надежного соединения
         connector = aiohttp.TCPConnector(limit=100, limit_per_host=30, keepalive_timeout=30)
-        timeout = aiohttp.ClientTimeout(total=15, connect=5)
+        timeout = aiohttp.ClientTimeout(total=15)
         http_session = aiohttp.ClientSession(
             connector=connector, timeout=timeout, headers={"User-Agent": "TelegramBot/1.0"}
         )
