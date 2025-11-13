@@ -297,6 +297,8 @@ async def get_current_user_language(user_id: int) -> str:
 async def start_command(update: Update, _context: ContextTypes.DEFAULT_TYPE):
     """Обработчик команды /start."""
     user = update.effective_user
+    if user is None:
+        return
     user_id = user.id
     lang = await get_current_user_language(user_id)
     welcome_text = get_message("welcome", lang, user_name=user.first_name)
@@ -309,7 +311,10 @@ async def start_command(update: Update, _context: ContextTypes.DEFAULT_TYPE):
 async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик команды /settings."""
     global user_manager
-    user_id = update.effective_user.id
+    user = update.effective_user
+    if user is None:
+        return
+    user_id = user.id
     try:
         lang = await get_current_user_language(user_id)
         logger.info(f"Loading settings for user {user_id}")
@@ -323,7 +328,10 @@ async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         current_subs = settings["subscriptions"] if isinstance(settings["subscriptions"], list) else []
         USER_STATES[user_id] = {"current_subs": current_subs, "language": settings["language"]}
-        await _show_settings_menu(context.bot, update.effective_chat.id, user_id)
+        chat = update.effective_chat
+        if chat is None:
+            return
+        await _show_settings_menu(context.bot, chat.id, user_id)
         USER_CURRENT_MENUS[user_id] = "settings"
     except Exception as e:
         logger.error(f"Ошибка команды /settings для {user_id}: {e}")
@@ -335,7 +343,10 @@ async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def help_command(update: Update, _context: ContextTypes.DEFAULT_TYPE):
     """Обработчик команды /help."""
-    user_id = update.effective_user.id
+    user = update.effective_user
+    if user is None:
+        return
+    user_id = user.id
     lang = await get_current_user_language(user_id)
     help_text = get_message("help_text", lang)
     message = get_message_from_update(update)
@@ -347,9 +358,12 @@ async def help_command(update: Update, _context: ContextTypes.DEFAULT_TYPE):
 async def status_command(update: Update, _context: ContextTypes.DEFAULT_TYPE):
     """Обработчик команды /status."""
     um = ensure_user_manager()
-    user_id = update.effective_user.id
+    user = update.effective_user
+    if user is None:
+        return
+    user_id = user.id
     lang = await get_current_user_language(user_id)
-    
+
     settings = await um.get_user_settings(user_id)
     if settings is None:
         message = get_message_from_update(update)
@@ -360,23 +374,26 @@ async def status_command(update: Update, _context: ContextTypes.DEFAULT_TYPE):
                 reply_markup=get_main_menu_keyboard(lang),
             )
         return
-    
+
     categories = settings["subscriptions"]
     categories_text = ", ".join(categories) if categories else get_message("no_subscriptions", lang)
     status_text = get_message(
         "status_text", lang, language=LANG_NAMES.get(settings["language"], "English"), categories=categories_text
     )
-    
+
     message = get_message_from_update(update)
     if message:
         await message.reply_text(status_text, parse_mode="HTML", reply_markup=get_main_menu_keyboard(lang))
-    
+
     USER_CURRENT_MENUS[user_id] = "main"
 
 
 async def change_language_command(update: Update, _context: ContextTypes.DEFAULT_TYPE):
     """Обработчик команды смены языка."""
-    user_id = update.effective_user.id
+    user = update.effective_user
+    if user is None:
+        return
+    user_id = user.id
     lang = await get_current_user_language(user_id)
     keyboard = [
         [InlineKeyboardButton("🇬🇧 English", callback_data="lang_en")],
@@ -393,9 +410,12 @@ async def change_language_command(update: Update, _context: ContextTypes.DEFAULT
 async def link_telegram_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик команды /link для привязки Telegram аккаунта."""
     um = ensure_user_manager()
-    user_id = update.effective_user.id
+    user = update.effective_user
+    if user is None:
+        return
+    user_id = user.id
     lang = await get_current_user_language(user_id)
-    
+
     message = get_message_from_update(update)
     if not message:
         return
@@ -465,8 +485,13 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global user_manager
     um = ensure_user_manager()
     query = update.callback_query
+    if query is None:
+        return
     await query.answer()
-    user_id = query.from_user.id
+    user = query.from_user
+    if user is None:
+        return
+    user_id = user.id
     try:
         if user_id not in USER_STATES:
             subs = await um.get_user_subscriptions(user_id)
@@ -474,8 +499,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             USER_STATES[user_id] = {"current_subs": current_subs, "language": await get_current_user_language(user_id)}
         state = USER_STATES[user_id]
         current_lang = state["language"]
-        if query.data.startswith("toggle_"):
-            category = query.data.split("_", 1)[1]
+        data = query.data
+        if data is None:
+            return
+        if data.startswith("toggle_"):
+            category = data.split("_", 1)[1]
             current_subs = state["current_subs"]
             if category in current_subs:
                 current_subs.remove(category)
@@ -483,9 +511,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 current_subs.append(category)
             state["current_subs"] = current_subs
             with suppress(Exception):
-                await query.message.delete()
+                msg = query.message
+                if msg is not None and isinstance(msg, Message):
+                    await msg.delete()
             await _show_settings_menu_from_callback(context.bot, query.message.chat_id, user_id)
-        elif query.data == "save_settings":
+        elif data == "save_settings":
             # Save category names as strings
             logger.info(
                 f"Saving settings for user {user_id}: subscriptions={state['current_subs']}, language={state['language']}"
@@ -494,7 +524,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.info(f"Save result for user {user_id}: {result}")
             USER_STATES.pop(user_id, None)
             with suppress(Exception):
-                await query.message.delete()
+                msg = query.message
+                if msg is not None and isinstance(msg, Message):
+                    await msg.delete()
             user = await context.bot.get_chat(user_id)
             welcome_text = (
                 get_message("settings_saved", current_lang)
@@ -505,13 +537,15 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 chat_id=user_id, text=welcome_text, reply_markup=get_main_menu_keyboard(current_lang)
             )
             USER_CURRENT_MENUS[user_id] = "main"
-        elif query.data.startswith("lang_"):
-            lang = query.data.split("_", 1)[1]
+        elif data.startswith("lang_"):
+            lang = data.split("_", 1)[1]
             await set_current_user_language(user_id, lang)
             if user_id in USER_STATES:
                 USER_STATES[user_id]["language"] = lang
             with suppress(Exception):
-                await query.message.delete()
+                msg = query.message
+                if msg is not None and isinstance(msg, Message):
+                    await msg.delete()
             user = await context.bot.get_chat(user_id)
             welcome_text = (
                 get_message("language_changed", lang, language=LANG_NAMES.get(lang, "English"))
@@ -522,7 +556,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 chat_id=user_id, text=welcome_text, reply_markup=get_main_menu_keyboard(lang)
             )
             USER_CURRENT_MENUS[user_id] = "main"
-        elif query.data == "change_lang":
+        elif data == "change_lang":
             current_lang = await get_current_user_language(user_id)
             keyboard = [
                 [InlineKeyboardButton("🇬🇧 English", callback_data="lang_en")],
@@ -530,9 +564,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 [InlineKeyboardButton("🇩🇪 Deutsch", callback_data="lang_de")],
                 [InlineKeyboardButton("🇫🇷 Français", callback_data="lang_fr")],
             ]
-            await query.message.edit_text(
-                text=get_message("language_select", current_lang), reply_markup=InlineKeyboardMarkup(keyboard)
-            )
+            msg = query.message
+            if msg is not None and isinstance(msg, Message):
+                await msg.edit_text(
+                    text=get_message("language_select", current_lang), reply_markup=InlineKeyboardMarkup(keyboard)
+                )
             USER_CURRENT_MENUS[user_id] = "language"
     except Exception as e:
         logger.error(f"Ошибка обработки кнопки для {user_id}: {e}")
@@ -547,12 +583,17 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_menu_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик выбора пункта меню."""
-    user_id = update.effective_user.id
+    user = update.effective_user
+    if user is None:
+        return
+    user_id = user.id
     lang = await get_current_user_language(user_id)
     message = get_message_from_update(update)
     if not message:
         return
     text = message.text
+    if text is None:
+        return
     menu_actions = {
         get_message("menu_settings", lang): settings_command,
         get_message("menu_help", lang): help_command,
@@ -567,7 +608,10 @@ async def handle_menu_selection(update: Update, context: ContextTypes.DEFAULT_TY
 
 async def debug(update: Update, _context: ContextTypes.DEFAULT_TYPE):
     """Обработчик отладочных сообщений."""
-    user_id = update.effective_user.id
+    user = update.effective_user
+    if user is None:
+        return
+    user_id = user.id
     lang = await get_current_user_language(user_id)
     message = get_message_from_update(update)
     if message:
@@ -659,7 +703,12 @@ async def send_personal_rss_items(bot, prepared_rss_item: PreparedRSSItem):
                     await bot.send_photo(chat_id=user_id, photo=image_filename, caption=caption, parse_mode="HTML")
                 except RetryAfter as e:
                     logger.warning(f"Flood control для пользователя {user_id}, ждем {e.retry_after} секунд")
-                    await asyncio.sleep(e.retry_after + 1)
+                    from datetime import timedelta
+                    if isinstance(e.retry_after, timedelta):
+                        sleep_time = e.retry_after.total_seconds() + 1
+                    else:
+                        sleep_time = float(e.retry_after) + 1
+                    await asyncio.sleep(sleep_time)
                     await bot.send_photo(chat_id=user_id, photo=image_filename, caption=caption, parse_mode="HTML")
                 except Exception as e:
                     logger.error(f"Ошибка отправки фото пользователю {user_id}: {e}")
@@ -670,7 +719,11 @@ async def send_personal_rss_items(bot, prepared_rss_item: PreparedRSSItem):
                     )
                 except RetryAfter as e:
                     logger.warning(f"Flood control для пользователя {user_id}, ждем {e.retry_after} секунд")
-                    await asyncio.sleep(e.retry_after + 1)
+                    if isinstance(e.retry_after, timedelta):
+                        sleep_time = e.retry_after.total_seconds() + 1
+                    else:
+                        sleep_time = float(e.retry_after) + 1
+                    await asyncio.sleep(sleep_time)
                     await bot.send_message(
                         chat_id=user_id, text=content_text, parse_mode="HTML", disable_web_page_preview=True
                     )
@@ -970,6 +1023,10 @@ def main():
     logger.info(f"Python version: {sys.version}")
     logger.info(f"Current working directory: {Path.cwd()}")
     logger.info(f"Bot token configured: {'Yes' if BOT_TOKEN else 'No'}")
+
+    if not BOT_TOKEN:
+        logger.error("BOT_TOKEN is not configured!")
+        return
 
     application = Application.builder().token(BOT_TOKEN).post_stop(post_stop).post_init(post_init).build()
 

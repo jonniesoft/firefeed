@@ -572,15 +572,48 @@ class RSSManager:
                     if i % 5 == 0:  # yield каждые 5 итераций
                         await asyncio.sleep(0)
 
-                    title = (entry.get("title", "") or "").strip()
+                    # Безопасное получение заголовка
+                    title_raw = entry.get("title")
+                    if isinstance(title_raw, str):
+                        title = title_raw.strip()
+                    elif isinstance(title_raw, list) and title_raw:
+                        title = str(title_raw[0]).strip() if title_raw[0] else ""
+                    else:
+                        title = ""
                     if not title:
                         logger.debug(f"[RSS] [SKIP] Пропуск записи без заголовка в {feed_info['url']}")
                         continue
 
-                    description = (entry.get("summary", "") or "").strip()
-                    content = (entry.get("content", [{}])[0].get("value", "") or description or "").strip()
+                    # Безопасное получение описания
+                    description_raw = entry.get("summary")
+                    if isinstance(description_raw, str):
+                        description = description_raw.strip()
+                    elif isinstance(description_raw, list) and description_raw:
+                        description = str(description_raw[0]).strip() if description_raw[0] else ""
+                    else:
+                        description = ""
 
-                    link = entry.get("link", "")
+                    # Безопасное получение контента
+                    content_raw = entry.get("content")
+                    if isinstance(content_raw, list) and content_raw:
+                        content_value = content_raw[0].get("value") if isinstance(content_raw[0], dict) else None
+                        if isinstance(content_value, str):
+                            content = content_value.strip()
+                        elif content_value:
+                            content = str(content_value).strip()
+                        else:
+                            content = ""
+                    else:
+                        content = ""
+                    if not content:
+                        content = description
+
+                    # Безопасное получение ссылки
+                    link_raw = entry.get("link")
+                    if isinstance(link_raw, str):
+                        link = link_raw
+                    else:
+                        link = ""
                     news_id = self.generate_news_id(title, content, link, rss_feed_id)
                     short_id = news_id[:20]
                     logger.debug(
@@ -632,8 +665,10 @@ class RSSManager:
                             )
 
                             # Проверяем тип контента перед скачиванием
+                            if not image_url_for_processing:
+                                logger.warning("[RSS] [IMG] image_url_for_processing is None")
                             timeout = aiohttp.ClientTimeout()
-                            async with aiohttp.ClientSession(timeout=timeout) as session, session.head(image_url_for_processing, timeout=timeout) as response:
+                            async with aiohttp.ClientSession(timeout=timeout) as session, session.head(str(image_url_for_processing), timeout=timeout) as response:
                                 content_type = response.headers.get("Content-Type", "").lower()
                                 logger.debug(f"[RSS] [IMG] HEAD-запрос вернул Content-Type: {content_type}")
                                 if content_type.startswith("image/"):
@@ -1182,6 +1217,8 @@ class RSSManager:
                 columns = [desc[0] for desc in cur.description]
 
                 for row in results:
+                    if row is None:
+                        continue
                     row_dict = dict(zip(columns, row, strict=False))
                     # Создаем структуру RSS-элемента для бота
                     rss_item = {
