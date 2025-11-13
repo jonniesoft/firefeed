@@ -4,6 +4,7 @@ from typing import Any, ClassVar
 
 import numpy as np
 import spacy
+from spacy.language import Language
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -63,7 +64,7 @@ class FireFeedEmbeddingsProcessor:
         embedding = self.model.encode(sample_text)
         return len(embedding)
 
-    def _get_spacy_model(self, lang_code: str) -> spacy.Language | None:
+    def _get_spacy_model(self, lang_code: str) -> Language | None:
         """Получает spacy модель для языка с глобальным LRU кэшированием"""
         if lang_code in self._spacy_cache:
             # Обновляем порядок использования (LRU)

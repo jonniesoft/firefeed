@@ -69,7 +69,7 @@ class FireFeedTranslator:
             "translations_processed": 0,
             "cache_hits": 0,
             "cache_misses": 0,
-            "total_translation_time": 0,
+            "total_translation_time": 0.0,
         }
 
         logger.info(f"[TRANSLATOR] Инициализация FireFeedTranslator на устройстве: {self.device}")

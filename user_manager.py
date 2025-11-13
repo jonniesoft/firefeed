@@ -151,6 +151,8 @@ class UserManager(DatabaseMixin):
     async def get_user_subscriptions(self, user_id):
         """Асинхронно возвращает только подписки пользователя"""
         settings = await self.get_user_settings(user_id)
+        if settings is None:
+            return []
         subscriptions = settings["subscriptions"]
         # Если subscriptions - список строк, возвращаем как есть
         # Если список объектов, возвращаем их
@@ -159,6 +161,8 @@ class UserManager(DatabaseMixin):
     async def get_user_language(self, user_id):
         """Асинхронно возвращает только язык пользователя"""
         settings = await self.get_user_settings(user_id)
+        if settings is None:
+            return "en"
         return settings["language"]
 
     async def get_subscribers_for_category(self, category):

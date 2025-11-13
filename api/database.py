@@ -363,7 +363,12 @@ async def get_user_categories(pool, user_id: int, source_ids: list[int] | None =
 
 
 async def create_user_rss_feed(
-    pool, user_id: int, url: str, name: str, category_id: int, language: str
+    pool,
+    user_id: int,
+    url: str,
+    name: str | None = None,
+    category_id: int | None = None,
+    language: str = "en",
 ) -> dict[str, Any] | None:
     """Создает пользовательскую RSS-ленту"""
     async with pool.acquire() as conn, conn.cursor() as cur:
@@ -1208,3 +1213,17 @@ async def get_recent_rss_items_for_broadcast(pool, last_check_time: datetime) ->
         except Exception as e:
             logger.info(f"[DB] Error in get_recent_news_for_broadcast: {e}")
             return []  # Возвращаем пустой список в случае ошибки, чтобы не прерывать фоновую задачу  # Возвращаем пустой список в случае ошибки, чтобы не прерывать фоновую задачу
+
+
+async def get_telegram_link_status(pool, user_id: int) -> dict[str, Any] | None:
+    """Получает статус привязки Telegram аккаунта пользователя"""
+    async with pool.acquire() as conn, conn.cursor() as cur:
+        await cur.execute(
+            "SELECT telegram_id, linked_at FROM user_telegram_links WHERE user_id = %s AND linked_at IS NOT NULL",
+            (user_id,),
+        )
+        result = await cur.fetchone()
+        if result:
+            return {"telegram_id": result[0], "linked_at": result[1]}
+        return None
+
