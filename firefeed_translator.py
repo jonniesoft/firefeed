@@ -418,7 +418,7 @@ class FireFeedTranslator:
 
                 # Загрузка токенизатора и модели через Transformers
                 tokenizer = M2M100Tokenizer.from_pretrained(model_name)
-                model = M2M100ForConditionalGeneration.from_pretrained(model_name).to(self.device)
+                model = M2M100ForConditionalGeneration.from_pretrained(model_name).to(self.device)  # type: ignore
 
                 logger.info(
                     f"[TRANSLATOR] [{time.time():.3f}] Модель {model_name} загружена через Transformers на {self.device}."

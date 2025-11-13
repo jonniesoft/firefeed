@@ -1214,7 +1214,7 @@ class RSSManager:
                     results.append(row)
 
                 # Получаем названия колонок
-                columns = [desc[0] for desc in cur.description]
+                columns = [desc[0] for desc in cur.description] if cur.description else []
 
                 for row in results:
                     if row is None:

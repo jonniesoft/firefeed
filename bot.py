@@ -514,7 +514,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 msg = query.message
                 if msg is not None and isinstance(msg, Message):
                     await msg.delete()
-            await _show_settings_menu_from_callback(context.bot, query.message.chat_id, user_id)
+            msg = query.message
+            if msg is not None and isinstance(msg, Message):
+                await _show_settings_menu_from_callback(context.bot, msg.chat_id, user_id)
         elif data == "save_settings":
             # Save category names as strings
             logger.info(
@@ -719,10 +721,11 @@ async def send_personal_rss_items(bot, prepared_rss_item: PreparedRSSItem):
                     )
                 except RetryAfter as e:
                     logger.warning(f"Flood control для пользователя {user_id}, ждем {e.retry_after} секунд")
+                    from datetime import timedelta
                     if isinstance(e.retry_after, timedelta):
                         sleep_time = e.retry_after.total_seconds() + 1
                     else:
-                        sleep_time = float(e.retry_after) + 1
+                        sleep_time = float(e.retry_after) + 1  # type: ignore
                     await asyncio.sleep(sleep_time)
                     await bot.send_message(
                         chat_id=user_id, text=content_text, parse_mode="HTML", disable_web_page_preview=True
@@ -819,7 +822,12 @@ async def post_to_channel(bot, prepared_rss_item: PreparedRSSItem):
                     message_id = message.message_id
                 except RetryAfter as e:
                     logger.warning(f"Flood control для канала {channel_id}, ждем {e.retry_after} секунд")
-                    await asyncio.sleep(e.retry_after + 1)
+                    from datetime import timedelta
+                    if isinstance(e.retry_after, timedelta):
+                        sleep_time = e.retry_after.total_seconds() + 1
+                    else:
+                        sleep_time = float(e.retry_after) + 1
+                    await asyncio.sleep(sleep_time)
                     message = await bot.send_photo(
                         chat_id=channel_id, photo=image_filename, caption=caption, parse_mode="HTML"
                     )
@@ -835,7 +843,12 @@ async def post_to_channel(bot, prepared_rss_item: PreparedRSSItem):
                     message_id = message.message_id
                 except RetryAfter as e:
                     logger.warning(f"Flood control для канала {channel_id}, ждем {e.retry_after} секунд")
-                    await asyncio.sleep(e.retry_after + 1)
+                    from datetime import timedelta
+                    if isinstance(e.retry_after, timedelta):
+                        sleep_time = e.retry_after.total_seconds() + 1
+                    else:
+                        sleep_time = float(e.retry_after) + 1
+                    await asyncio.sleep(sleep_time)
                     message = await bot.send_message(
                         chat_id=channel_id, text=content_text, parse_mode="HTML", disable_web_page_preview=True
                     )

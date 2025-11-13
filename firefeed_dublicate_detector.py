@@ -184,6 +184,9 @@ class FireFeedDuplicateDetector(DatabaseMixin):
                     )
 
                 results = await cur.fetchall()
+                # Проверяем что description не None
+                if cur.description is None:
+                    return []
                 return [dict(zip([column[0] for column in cur.description], row, strict=False)) for row in results]
         except Exception as e:
             logger.error(f"[DUBLICATE_DETECTOR] Ошибка при поиске похожих RSS-элементов: {e}")
@@ -363,7 +366,7 @@ class FireFeedDuplicateDetector(DatabaseMixin):
 
             # Получаем имена колонок
             # cur.description доступен после execute
-            column_names = [desc[0] for desc in cur.description]
+            column_names = [desc[0] for desc in cur.description] if cur.description else []
 
             # Преобразуем результаты в список словарей
             rss_items_list = [dict(zip(column_names, row, strict=False)) for row in results]
