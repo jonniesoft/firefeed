@@ -13,6 +13,7 @@ from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     KeyboardButton,
+    Message,
     ReplyKeyboardMarkup,
     Update,
 )
@@ -64,6 +65,59 @@ class PreparedRSSItem:
     original_data: dict[str, Any]
     translations: dict[str, dict[str, str]]
     image_filename: str | None
+
+
+# --- Type Safety Helpers для Telegram объектов ---
+
+
+def get_user_id_from_update(update: Update) -> int | None:
+    """Безопасно извлечь user_id из Update (message или callback_query).
+
+    Args:
+        update: Telegram Update object
+
+    Returns:
+        user_id или None если не удалось извлечь
+    """
+    if update.message and update.message.from_user:
+        return update.message.from_user.id
+    if update.callback_query and update.callback_query.from_user:
+        return update.callback_query.from_user.id
+    return None
+
+
+def get_message_from_update(update: Update) -> Message | None:
+    """Безопасно получить Message из Update.
+
+    Args:
+        update: Telegram Update object
+
+    Returns:
+        Message объект или None
+    """
+    if update.message:
+        return update.message
+    if update.callback_query and update.callback_query.message:
+        # callback_query.message может быть MaybeInaccessibleMessage
+        # проверяем что это именно Message
+        msg = update.callback_query.message
+        if isinstance(msg, Message):
+            return msg
+    return None
+
+
+def ensure_user_manager():
+    """Убедиться что user_manager инициализирован.
+
+    Returns:
+        user_manager instance
+
+    Raises:
+        RuntimeError: если user_manager не инициализирован
+    """
+    if user_manager is None:
+        raise RuntimeError("user_manager not initialized")
+    return user_manager
 
 
 # --- Функции для работы с БД ---
@@ -216,9 +270,9 @@ def get_main_menu_keyboard(lang="en"):
 
 async def set_current_user_language(user_id: int, lang: str):
     """Устанавливает язык пользователя в БД и в памяти."""
-    global user_manager
     try:
-        await user_manager.set_user_language(user_id, lang)
+        um = ensure_user_manager()
+        await um.set_user_language(user_id, lang)
         USER_LANGUAGES[user_id] = lang
     except Exception as e:
         logger.error(f"Ошибка установки языка для {user_id}: {e}")
@@ -229,7 +283,8 @@ async def get_current_user_language(user_id: int) -> str:
     if user_id in USER_LANGUAGES:
         return USER_LANGUAGES[user_id]
     try:
-        lang = await user_manager.get_user_language(user_id)
+        um = ensure_user_manager()
+        lang = await um.get_user_language(user_id)
         if lang:
             USER_LANGUAGES[user_id] = lang
         return lang or "en"
@@ -279,16 +334,31 @@ async def help_command(update: Update, _context: ContextTypes.DEFAULT_TYPE):
 
 async def status_command(update: Update, _context: ContextTypes.DEFAULT_TYPE):
     """Обработчик команды /status."""
-    global user_manager
+    um = ensure_user_manager()
     user_id = update.effective_user.id
     lang = await get_current_user_language(user_id)
-    settings = await user_manager.get_user_settings(user_id)
+    
+    settings = await um.get_user_settings(user_id)
+    if settings is None:
+        message = get_message_from_update(update)
+        if message:
+            await message.reply_text(
+                get_message("settings_not_found", lang),
+                parse_mode="HTML",
+                reply_markup=get_main_menu_keyboard(lang),
+            )
+        return
+    
     categories = settings["subscriptions"]
     categories_text = ", ".join(categories) if categories else get_message("no_subscriptions", lang)
     status_text = get_message(
         "status_text", lang, language=LANG_NAMES.get(settings["language"], "English"), categories=categories_text
     )
-    await update.message.reply_text(status_text, parse_mode="HTML", reply_markup=get_main_menu_keyboard(lang))
+    
+    message = get_message_from_update(update)
+    if message:
+        await message.reply_text(status_text, parse_mode="HTML", reply_markup=get_main_menu_keyboard(lang))
+    
     USER_CURRENT_MENUS[user_id] = "main"
 
 
@@ -308,11 +378,16 @@ async def change_language_command(update: Update, _context: ContextTypes.DEFAULT
 
 async def link_telegram_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик команды /link для привязки Telegram аккаунта."""
+    um = ensure_user_manager()
     user_id = update.effective_user.id
     lang = await get_current_user_language(user_id)
+    
+    message = get_message_from_update(update)
+    if not message:
+        return
 
     if not context.args:
-        await update.message.reply_text(
+        await message.reply_text(
             "Использование: /link <код_привязки>\n\n" "Получите код привязки в личном кабинете на сайте.",
             reply_markup=get_main_menu_keyboard(lang),
         )
@@ -322,16 +397,16 @@ async def link_telegram_command(update: Update, context: ContextTypes.DEFAULT_TY
     link_code = context.args[0].strip()
 
     # Проверяем код через UserManager
-    success = await user_manager.confirm_telegram_link(user_id, link_code)
+    success = await um.confirm_telegram_link(user_id, link_code)
 
     if success:
-        await update.message.reply_text(
+        await message.reply_text(
             "✅ Ваш Telegram аккаунт успешно привязан к аккаунту на сайте!\n\n"
             "Теперь вы можете управлять настройками через сайт или бота.",
             reply_markup=get_main_menu_keyboard(lang),
         )
     else:
-        await update.message.reply_text(
+        await message.reply_text(
             "❌ Код привязки недействителен или истек.\n\n"
             "Пожалуйста, сгенерируйте новый код в личном кабинете на сайте.",
             reply_markup=get_main_menu_keyboard(lang),
