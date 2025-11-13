@@ -393,7 +393,7 @@ class RSSManager:
 
             if is_duplicate:
                 logger.warning(
-                    f"[DUPLICATE_CHECK] Найден дубликат новости: {title[:50]}... Дубликат: {duplicate_info.get('news_id', 'unknown')}"
+                    f"[DUPLICATE_CHECK] Найден дубликат новости: {title[:50]}... Дубликат: {duplicate_info.get('news_id', 'unknown') if duplicate_info else 'unknown'}"
                 )
                 return True
 
@@ -423,7 +423,7 @@ class RSSManager:
         """Валидирует RSS-ленту: проверяет, что URL возвращает валидный RSS."""
         try:
             # Проверяем заголовки
-            timeout = aiohttp.ClientTimeout(total=10)
+            timeout = aiohttp.ClientTimeout()
             content_type_valid = False
             async with aiohttp.ClientSession(timeout=timeout) as session, session.head(url, headers=headers) as response:
                 content_type = response.headers.get("Content-Type", "").lower()
@@ -459,7 +459,7 @@ class RSSManager:
             if "expected string or bytes-like object, got 'dict'" in str(e):
                 try:
                     logger.debug(f"[RSS] [VALIDATE] Попытка получить сырой контент для {url}")
-                    timeout = aiohttp.ClientTimeout(total=15)
+                    timeout = aiohttp.ClientTimeout()
                     async with aiohttp.ClientSession(timeout=timeout) as session, session.get(url, headers=headers) as response:
                         raw_content = await response.text()
                         loop = asyncio.get_event_loop()
@@ -547,7 +547,7 @@ class RSSManager:
                 if not feed.entries and feed.bozo:
                     logger.debug(f"[RSS] [DEBUG] feedparser не смог распарсить {feed_info['url']}. Пробуем aiohttp...")
                     try:
-                        timeout = aiohttp.ClientTimeout(total=15)
+                        timeout = aiohttp.ClientTimeout()
                         async with aiohttp.ClientSession(timeout=timeout) as session, session.get(feed_info["url"], headers=headers) as response:
                             raw_content = await response.text()
                             # Парсим асинхронно
@@ -635,7 +635,7 @@ class RSSManager:
                             )
 
                             # Проверяем тип контента перед скачиванием
-                            timeout = aiohttp.ClientTimeout(total=10)
+                            timeout = aiohttp.ClientTimeout()
                             async with aiohttp.ClientSession(timeout=timeout) as session, session.head(image_url_for_processing, timeout=timeout) as response:
                                 content_type = response.headers.get("Content-Type", "").lower()
                                 logger.debug(f"[RSS] [IMG] HEAD-запрос вернул Content-Type: {content_type}")

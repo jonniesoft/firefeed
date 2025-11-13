@@ -326,7 +326,7 @@ class FireFeedDuplicateDetector(DatabaseMixin):
 
             if is_dup:
                 logger.info(
-                    f"[DUBLICATE_DETECTOR] RSS-элемент {title[:50]} является дубликатом RSS-элемента {duplicate_info['news_id']}"
+                    f"[DUBLICATE_DETECTOR] RSS-элемент {title[:50]} является дубликатом RSS-элемента {duplicate_info['news_id'] if duplicate_info else 'unknown'}"
                 )
                 return False
 
@@ -507,8 +507,7 @@ class FireFeedDuplicateDetector(DatabaseMixin):
             logger.error(f"[BATCH_EMBEDDING] Ошибка в однократной обработке: {e}", exc_info=True)
             raise  # Повторно выбрасываем исключение, чтобы вызывающая сторона могла его обработать
 
-    @classmethod
-    async def close_pool(cls):
+    async def close_pool(self):
         """Заглушка - пул закрывается глобально"""
         pass
 
