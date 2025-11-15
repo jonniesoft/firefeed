@@ -132,9 +132,9 @@ class TestUserBase:
 
 class TestUserCreateOld:
     def test_valid_user_create(self):
-        user = UserCreate(email="test@example.com", password="password123", language="en")
+        user = UserCreate(email="test@example.com", password="Password123!", language="en")
         assert user.email == "test@example.com"
-        assert user.password == "password123"
+        assert user.password == "Password123!"
 
     def test_password_too_short(self):
         with pytest.raises(ValidationError):
@@ -202,9 +202,9 @@ class TestPasswordResetRequest:
 
 class TestPasswordResetConfirmOld:
     def test_valid_password_reset_confirm(self):
-        confirm = PasswordResetConfirm(token="abc123", new_password="newpassword123")
+        confirm = PasswordResetConfirm(token="abc123", new_password="Newpassword123!")
         assert confirm.token == "abc123"
-        assert confirm.new_password == "newpassword123"
+        assert confirm.new_password == "Newpassword123!"
 
     def test_password_too_short(self):
         with pytest.raises(ValidationError):
