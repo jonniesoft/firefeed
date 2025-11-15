@@ -21,6 +21,7 @@
 - [Конфигурация](#конфигурация)
 - [API документация](#api-документация)
 - [Разработка](#разработка)
+  - [Workflow проверки качества кода](#workflow-проверки-качества-кода)
 - [Лицензия](#лицензия)
 
 ## Обзор проекта
@@ -149,6 +150,10 @@ uv run bot.py
 # Дать права на выполнение
 chmod +x ./run_bot.sh
 chmod +x ./run_api.sh
+chmod +x ./scripts/start-database.sh
+
+# Запуск БД (PostgreSQL + Redis)
+./scripts/start-database.sh
 
 # Запуск бота
 ./run_bot.sh
@@ -156,6 +161,8 @@ chmod +x ./run_api.sh
 # Запуск API
 ./run_api.sh
 ```
+
+**Примечание**: Скрипт `./scripts/start-database.sh` автоматически настраивает Podman и запускает только необходимые для разработки сервисы (БД и Redis).
 
 ### Запуск через Podman
 
@@ -192,15 +199,51 @@ podman run -d --env-file .env --name firefeed-parser firefeed:latest python rss_
 
 В репозитории используется файл `docker-compose.yml`, совместимый с `podman-compose`.
 
+#### ⚙️ Настройка Podman для коротких имен образов
+
+Podman требует полные доменные имена для образов или настроенный `registries.conf`. Для вашего удобства:
+
+1. **Локальный файл конфигурации**: `.config/containers/registries.conf`
+   - Автоматически копируется в `~/.config/containers/registries.conf` при первом запуске
+   - Позволяет использовать короткие имена образов (например, `redis:7-alpine`)
+   - Указывает Docker Hub как основной registry для поиска образов
+
+2. **Автоматический запуск БД**: скрипт `./scripts/start-database.sh`
+   - Создает и настраивает registries.conf
+   - Запускает только PostgreSQL и Redis
+   - Ждет готовности БД перед завершением
+   - Автоматически получает параметры из `.env`
+
+#### 🚀 Запуск базы данных
+
+**Быстрый способ (рекомендуется):**
+
+```bash
+# Запустить только БД и Redis
+./scripts/start-database.sh
+
+# Проверить статус
+podman-compose ps
+```
+
+**Полный запуск всех сервисов:**
+
 ```bash
 # Поднять все сервисы в фоне
-podman-compose -f docker-compose.yml up -d
+podman-compose up -d
 
 # Проверить состояние
-podman-compose -f docker-compose.yml ps
+podman-compose ps
 
 # Остановить и удалить
-podman-compose -f docker-compose.yml down
+podman-compose down
+```
+
+**Остановка только БД:**
+
+```bash
+# Остановить PostgreSQL и Redis
+podman-compose stop db redis
 ```
 
 ## Конфигурация
@@ -218,6 +261,29 @@ SMTP_PORT=587
 SMTP_USERNAME=your_smtp_username
 SMTP_PASSWORD=your_smtp_password
 ```
+
+### Конфигурация контейнеров
+
+Для корректной работы Podman с короткими именами образов в проекте создан файл `.config/containers/registries.conf`:
+
+```ini
+[registries.search]
+registries = ['docker.io']
+
+[registries.insecure]
+registries = []
+
+[registries.block]
+registries = []
+```
+
+**Что это делает:**
+- Указывает Podman искать образы по коротким именам в Docker Hub (`docker.io`)
+- Позволяет использовать `redis:7-alpine` вместо `docker.io/library/redis:7-alpine`
+- Автоматически копируется в `~/.config/containers/registries.conf` скриптом `./scripts/start-database.sh`
+
+**Почему это нужно:**
+По умолчанию Podman блокирует короткие имена образов из соображений безопасности (предотвращение атак типа "image hijacking"). Этот файл конфигурации явно разрешает использование Docker Hub как доверенного registry.
 
 ### Systemd сервисы
 
@@ -404,6 +470,8 @@ uv run pytest tests/ --tb=short
 firefeed/
 ├── api/                 # FastAPI приложение
 ├── tests/                 # Unit-тесты
+├── scripts/              # Скрипты автоматизации
+├── doc/                  # Полная документация
 ├── bot.py              # Telegram бот
 ├── rss_parser.py       # RSS парсер
 ├── firefeed_translator.py    # Переводчик
@@ -412,6 +480,59 @@ firefeed/
 ├── requirements.txt    # Зависимости
 └── config/            # Конфигурации
 ```
+
+### Workflow проверки качества кода
+
+Проект использует современные инструменты качества кода от Meta для автоматизации рефакторинга и поддержания высокого стандарта кода.
+
+#### Быстрый старт - полная проверка:
+
+```bash
+# Все проверки одним скриптом
+./scripts/test_meta_tools.sh
+```
+
+#### Пошаговая проверка:
+
+```bash
+# 1. Сортировка импортов
+uv run usort .
+
+# 2. Проверка типов
+uv run pyrefly check
+
+# 3. Проверка стиля кода
+uv run ruff check .
+
+# 4. Запуск тестов
+uv run pytest
+```
+
+#### Автоматические исправления:
+
+```bash
+# Применить все безопасные codemods
+python scripts/apply_codemods.py
+
+# Исправить стиль кода
+uv run ruff check --fix .
+
+# Трансформации libcst
+python scripts/libcst_transformations.py проблемный_файл.py
+```
+
+#### Инструменты качества:
+
+| Инструмент | Версия | Назначение |
+|------------|--------|------------|
+| usort | 1.1.0 | Сортировка импортов |
+| pyrefly | 0.41.2 | Проверка типов |
+| libcst | 1.8.6 | Трансформации кода |
+| codemod | 1.0.0 | Автоматические рефакторинги |
+
+**📖 Полная документация**: См. папку [`doc/`](doc/) для подробных руководств:
+- [`doc/META_TOOLS_INTEGRATION_GUIDE.md`](doc/META_TOOLS_INTEGRATION_GUIDE.md) - Полное руководство
+- [`doc/META_TOOLS_QUICK_REFERENCE.md`](doc/META_TOOLS_QUICK_REFERENCE.md) - Краткий справочник
 
 ## Лицензия
 
