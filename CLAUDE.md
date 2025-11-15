@@ -127,6 +127,7 @@ uv run pytest -v --cov
 - Check Serena memories first: `mcp__serena__read_memory suggested_commands.md`
 - Review project README.md for architecture details
 - Consult pyproject.toml for dependencies and configuration
+- Search external documentation: `mcp__Ref__ref_search_documentation`
 
 [byterover-mcp]
 
@@ -148,4 +149,30 @@ You `MUST` always use this tool when:
 + Before making architectural decisions to understand existing patterns
 + When debugging issues to check for previous solutions
 + Working with unfamiliar parts of the codebase
+
+## External Documentation Search
+
+When you need to search for documentation or examples on the web, use the `mcp__Ref__ref_search_documentation` tool. This tool provides access to web documentation and is particularly useful for:
+
+- Finding official documentation for technologies used in the project
+- Searching for code examples and best practices
+- Looking up error solutions and troubleshooting guides
+- Exploring new libraries or tools
+
+**Usage:**
+```bash
+# Search for documentation
+mcp__Ref__ref_search_documentation query="podman registries.conf short name resolution docker.io"
+
+# Read specific documentation
+mcp__Ref__ref_read_url url="https://docs.python.org/3/library/asyncio.html"
+```
+
+**Important:**
+- Always search documentation first before asking for help
+- Use specific, technical queries for better results
+- Check the official documentation before searching general web resources
+
+## Command-line Tips
+
 - Используй rg вместо grep
