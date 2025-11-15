@@ -89,7 +89,9 @@ async def generate_telegram_link_code(
     },
 )
 @limiter.limit("300/minute")
-async def unlink_telegram_account(_request: Request, current_user: dict = Depends(get_current_user)):
+async def unlink_telegram_account(
+    _request: Request, current_user: dict = Depends(get_current_user)
+):
     from user_manager import UserManager
 
     user_manager = UserManager()
