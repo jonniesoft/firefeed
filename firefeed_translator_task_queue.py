@@ -104,7 +104,8 @@ class FireFeedTranslatorTaskQueue:
         # Ждем завершения с таймаутом
         try:
             await asyncio.wait_for(
-                asyncio.gather(*self.workers, return_exceptions=True), timeout=10.0
+                asyncio.gather(*self.workers, return_exceptions=True),  # type: ignore[arg-type]
+                timeout=10.0,
             )
         except TimeoutError:
             logger.warning("[QUEUE] ⚠️ Принудительная остановка воркеров")

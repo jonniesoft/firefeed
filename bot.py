@@ -1148,7 +1148,28 @@ def main():
 
     logger.info("Бот запущен в режиме Webhook")
     try:
-        application.run_webhook(**WEBHOOK_CONFIG, close_loop=False)
+        # Prepare webhook kwargs with proper types, filtering out None values
+        webhook_listen = WEBHOOK_CONFIG.get("listen")
+        webhook_port = WEBHOOK_CONFIG.get("port")
+        webhook_url_path = WEBHOOK_CONFIG.get("url_path")
+        webhook_url = WEBHOOK_CONFIG.get("webhook_url")
+
+        # Pass parameters explicitly to avoid type inference issues
+        if webhook_url:
+            application.run_webhook(
+                listen=str(webhook_listen) if webhook_listen else "127.0.0.1",
+                port=int(webhook_port) if webhook_port else 5000,
+                url_path=str(webhook_url_path) if webhook_url_path else "webhook",
+                webhook_url=str(webhook_url),
+                close_loop=False,
+            )
+        else:
+            application.run_webhook(
+                listen=str(webhook_listen) if webhook_listen else "127.0.0.1",
+                port=int(webhook_port) if webhook_port else 5000,
+                url_path=str(webhook_url_path) if webhook_url_path else "webhook",
+                close_loop=False,
+            )
     except (KeyboardInterrupt, SystemExit):
         logger.info("Прервано пользователем или системой...")
     except Exception as e:

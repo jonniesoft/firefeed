@@ -66,7 +66,7 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     password: str = Field(..., min_length=10)
 
-    @validator("password")
+    @validator("password")  # type: ignore[misc]
     def validate_password(cls, v):
         """Validate password complexity requirements"""
         if len(v) < 10:
@@ -141,7 +141,7 @@ class PasswordResetConfirm(BaseModel):
     token: str
     new_password: str = Field(..., min_length=10)
 
-    @validator("new_password")
+    @validator("new_password")  # type: ignore[misc]
     def validate_password(cls, v):
         """Validate password complexity requirements"""
         if len(v) < 10:

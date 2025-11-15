@@ -2,6 +2,7 @@ import asyncio
 import logging
 import signal
 import sys
+from typing import Any
 
 from config import close_shared_db_pool
 from firefeed_dublicate_detector import FireFeedDuplicateDetector
@@ -27,9 +28,9 @@ class RSSParserService:
 
         self.rss_manager = RSSManager(translator_queue=self.translator_queue)
         self.running = True
-        self.parse_task = None
-        self.batch_processor_task = None
-        self.cleanup_task = None
+        self.parse_task: Any | None = None
+        self.batch_processor_task: Any | None = None
+        self.cleanup_task: Any | None = None
 
     async def parse_rss_task(self):
         """Периодическая задача парсинга RSS"""

@@ -58,7 +58,7 @@ class FireFeedTranslator:
         self.text_processor = TextProcessor()
 
         # Терминологический словарь (из внешнего файла)
-        self.terminology_dict = TERMINOLOGY_DICT
+        self.terminology_dict = TERMINOLOGY_DICT  # type: ignore[assignment]
 
         # Загрузка процессора эмбеддингов для семантической проверки
         logger.info("[SEMANTIC] Загрузка процессора эмбеддингов для семантической проверки...")
@@ -591,7 +591,7 @@ class FireFeedTranslator:
         text = ". ".join(unique_lines)
 
         # 7. Замена терминов (регистронезависимо) - только для случаев, когда перевод не сработал
-        for eng, translations in self.terminology_dict.items():
+        for eng, translations in self.terminology_dict.items():  # type: ignore[union-attr]
             if target_lang in translations:
                 translated_term = translations[target_lang]
                 text = re.sub(
@@ -785,6 +785,7 @@ class FireFeedTranslator:
         """
         cache_key = direction
         current_time = time.time()
+        model_name = None  # Initialize model_name for use in except block
 
         # Проверяем наличие в кэше
         if cache_key in self.model_cache:

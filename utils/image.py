@@ -32,11 +32,13 @@ class ImageProcessor:
             )
             return None
 
+        # Инициализируем full_save_directory до блока try для использования в exception handler
+        full_save_directory = Path(save_directory)
         try:
             # Используем текущее время для формирования пути
             created_at = datetime.now()
             date_path = created_at.strftime("%Y/%m/%d")
-            full_save_directory = Path(save_directory) / date_path
+            full_save_directory = full_save_directory / date_path
 
             logger.debug(f"[DEBUG] Начинаем сохранять изображение из {url} в {full_save_directory}")
             full_save_directory.mkdir(parents=True, exist_ok=True)

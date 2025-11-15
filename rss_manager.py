@@ -463,7 +463,7 @@ class RSSManager:
 
             # Пробуем спарсить содержимое
             loop = asyncio.get_event_loop()
-            feed = await loop.run_in_executor(None, feedparser.parse, url)
+            feed = await loop.run_in_executor(None, feedparser.parse, url)  # type: ignore[arg-type]
             if feed.bozo:
                 # Игнорируем ошибки кодировки, так как контент все равно считывается
                 if "document declared as us-ascii, but parsed as utf-8" in str(feed.bozo_exception):
@@ -503,7 +503,7 @@ class RSSManager:
                     ):
                         raw_content = await response.text()
                         loop = asyncio.get_event_loop()
-                        feed = await loop.run_in_executor(None, feedparser.parse, raw_content)
+                        feed = await loop.run_in_executor(None, feedparser.parse, raw_content)  # type: ignore[arg-type]
                         if feed.bozo:
                             # Игнорируем ошибки кодировки, так как контент все равно считывается
                             if "document declared as us-ascii, but parsed as utf-8" in str(
@@ -590,7 +590,7 @@ class RSSManager:
                 logger.info(f"[RSS] Парсинг ленты: {feed_info['name']} ({feed_info['url']})")
                 # Парсим RSS асинхронно
                 loop = asyncio.get_event_loop()
-                feed = await loop.run_in_executor(None, feedparser.parse, feed_info["url"])
+                feed = await loop.run_in_executor(None, feedparser.parse, feed_info["url"])  # type: ignore[arg-type]
                 # Альтернативная попытка с использованием aiohttp для получения сырого содержимого
                 if not feed.entries and feed.bozo:
                     logger.debug(
@@ -605,7 +605,7 @@ class RSSManager:
                             raw_content = await response.text()
                             # Парсим асинхронно
                             loop = asyncio.get_event_loop()
-                            feed = await loop.run_in_executor(None, feedparser.parse, raw_content)
+                            feed = await loop.run_in_executor(None, feedparser.parse, raw_content)  # type: ignore[arg-type]
                             if feed.entries:
                                 logger.debug(
                                     f"[RSS] [DEBUG] aiohttp помог распарсить {feed_info['url']}"
@@ -636,8 +636,9 @@ class RSSManager:
                     title_raw = entry.get("title")
                     if isinstance(title_raw, str):
                         title = title_raw.strip()
-                    elif isinstance(title_raw, list) and title_raw:
-                        title = str(title_raw[0]).strip() if title_raw[0] else ""
+                    elif isinstance(title_raw, list) and len(title_raw) > 0:
+                        first_item = title_raw[0]
+                        title = str(first_item).strip() if first_item is not None else ""
                     else:
                         title = ""
                     if not title:
@@ -650,8 +651,9 @@ class RSSManager:
                     description_raw = entry.get("summary")
                     if isinstance(description_raw, str):
                         description = description_raw.strip()
-                    elif isinstance(description_raw, list) and description_raw:
-                        description = str(description_raw[0]).strip() if description_raw[0] else ""
+                    elif isinstance(description_raw, list) and len(description_raw) > 0:
+                        first_item = description_raw[0]
+                        description = str(first_item).strip() if first_item is not None else ""
                     else:
                         description = ""
 
@@ -818,11 +820,15 @@ class RSSManager:
                         )
 
                         detector = FireFeedDuplicateDetector()
+                        # Ensure rss_item fields are strings for type safety
+                        title_str = str(rss_item["title"]) if rss_item["title"] else ""
+                        content_str = str(rss_item["content"]) if rss_item["content"] else ""
+                        lang_str = str(rss_item["lang"]) if rss_item["lang"] else ""
                         is_unique = await detector.process_rss_item(
                             rss_item_id=saved_rss_item_id,
-                            title=rss_item["title"],
-                            content=rss_item["content"],
-                            lang_code=rss_item["lang"],
+                            title=title_str,
+                            content=content_str,
+                            lang_code=lang_str,
                         )
 
                         if not is_unique:
@@ -846,8 +852,11 @@ class RSSManager:
                     translations = {}
                     if self.translator_queue:
                         try:
+                            # Ensure rss_item['id'] is not None for type safety
+                            assert rss_item["id"] is not None, "rss_item['id'] should not be None"
+                            rss_id_str = str(rss_item["id"])
                             logger.debug(
-                                f"[DEBUG] fetch_single_feed: Перед добавлением задачи перевода для {rss_item['id'][:20]}..."
+                                f"[DEBUG] fetch_single_feed: Перед добавлением задачи перевода для {rss_id_str[:20]}..."
                             )
                             success_cb, error_cb = self._create_translation_callbacks(
                                 rss_item["id"]
@@ -862,12 +871,14 @@ class RSSManager:
                                 task_id=rss_item["id"],
                             )
                             logger.debug(
-                                f"[DEBUG] fetch_single_feed: Задача перевода добавлена в очередь для {rss_item['id'][:20]}"
+                                f"[DEBUG] fetch_single_feed: Задача перевода добавлена в очередь для {rss_id_str[:20]}"
                             )
                         except Exception as e:
                             logger.error(
                                 f"[RSS] [ERROR] Ошибка добавления задачи перевода в очередь: {e}"
                             )
+                            import traceback
+
                             traceback.print_exc()
                     else:
                         logger.debug(

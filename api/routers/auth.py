@@ -61,7 +61,7 @@ router = APIRouter(
 )
 @limiter.limit("5/minute")
 async def register_user(
-    request: Request, user: models.UserCreate, background_tasks: BackgroundTasks
+    _request: Request, user: models.UserCreate, background_tasks: BackgroundTasks
 ):
     pool = await database.get_db_pool()
     if pool is None:
@@ -140,7 +140,7 @@ async def register_user(
     },
 )
 @limiter.limit("300/minute")
-async def verify_user(request: Request, email_verification: models.EmailVerificationRequest):
+async def verify_user(_request: Request, email_verification: models.EmailVerificationRequest):
     pool = await database.get_db_pool()
     if pool is None:
         raise HTTPException(
@@ -197,7 +197,7 @@ async def verify_user(request: Request, email_verification: models.EmailVerifica
     },
 )
 @limiter.limit("10/minute")
-async def login_user(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
+async def login_user(_request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
     pool = await database.get_db_pool()
     if pool is None:
         raise HTTPException(
@@ -267,7 +267,7 @@ async def login_user(request: Request, form_data: OAuth2PasswordRequestForm = De
 )
 @limiter.limit("300/minute")
 async def request_password_reset(
-    request: Request,
+    _request: Request,
     password_reset_request: models.PasswordResetRequest,
     background_tasks: BackgroundTasks,
 ):
@@ -349,7 +349,7 @@ async def request_password_reset(
 )
 @limiter.limit("300/minute")
 async def confirm_password_reset(
-    request: Request, password_reset_confirm: models.PasswordResetConfirm
+    _request: Request, password_reset_confirm: models.PasswordResetConfirm
 ):
     pool = await database.get_db_pool()
     if pool is None:

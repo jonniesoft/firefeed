@@ -4,7 +4,7 @@ This module provides utilities to safely handle potentially None values,
 type conversions, and dynamic types from external libraries.
 """
 
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 T = TypeVar("T")
 
@@ -25,7 +25,9 @@ def safe_get_attr[T](obj: Any, attr: str, default: T) -> T:
         >>> name = safe_get_attr(user, 'name', 'Anonymous')
         >>> # returns 'Anonymous'
     """
-    return getattr(obj, attr, default) if obj is not None else default
+    if obj is not None:
+        return cast("T", getattr(obj, attr, default))
+    return default
 
 
 def safe_feed_text(value: Any) -> str:
