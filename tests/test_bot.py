@@ -3,7 +3,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from bot import (
-    PreparedRSSItem,
     api_get,
     cleanup_http_session,
     get_categories,
@@ -18,6 +17,7 @@ from bot import (
     mark_original_as_published,
     mark_translation_as_published,
     monitor_rss_items_task,
+    PreparedRSSItem,
     process_rss_item,
     set_current_user_language,
 )

@@ -125,7 +125,7 @@ def process_rss_items_results(
 )
 @limiter.limit("1000/minute")
 async def get_rss_items(
-    _request: Request,
+    request: Request,
     display_language: str | None = Query(None),
     original_language: str | None = Query(None),
     category_id: list[int] | None = Query(None),
@@ -208,7 +208,7 @@ async def get_rss_items(
     },
 )
 @limiter.limit("300/minute")
-async def get_rss_item_by_id(__request: Request, rss_item_id: str):
+async def get_rss_item_by_id(request: Request, rss_item_id: str):
     pool = await database.get_db_pool()
     if pool is None:
         raise HTTPException(status_code=500, detail="Ошибка подключения к базе данных")
@@ -278,7 +278,7 @@ async def get_rss_item_by_id(__request: Request, rss_item_id: str):
 )
 @limiter.limit("300/minute")
 async def get_categories(
-    _request: Request,
+    request: Request,
     limit: int = Query(100, le=1000, gt=0),
     offset: int = Query(0, ge=0),
     source_ids: list[int] | None = Query(None),
@@ -341,7 +341,7 @@ async def get_categories(
 )
 @limiter.limit("300/minute")
 async def get_sources(
-    _request: Request,
+    request: Request,
     limit: int = Query(100, le=1000, gt=0),
     offset: int = Query(0, ge=0),
     category_id: list[int] | None = Query(None),
@@ -386,7 +386,7 @@ async def get_sources(
     },
 )
 @limiter.limit("300/minute")
-async def get_languages(__request: Request):
+async def get_languages(request: Request):
     return {"results": config.SUPPORTED_LANGUAGES}
 
 
@@ -437,7 +437,7 @@ async def get_languages(__request: Request):
     },
 )
 @limiter.limit("300/minute")
-async def health_check(__request: Request):
+async def health_check(request: Request):
     try:
         pool = await database.get_db_pool()
         if pool:

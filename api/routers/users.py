@@ -39,7 +39,7 @@ router = APIRouter(
 )
 @limiter.limit("300/minute")
 async def get_current_user_profile(
-    _request: Request, current_user: dict = Depends(get_current_user)
+    request: Request, current_user: dict = Depends(get_current_user)
 ):
     return models.UserResponse(**current_user)
 
@@ -72,7 +72,7 @@ async def get_current_user_profile(
 )
 @limiter.limit("300/minute")
 async def update_current_user(
-    _request: Request,
+    request: Request,
     user_update: models.UserUpdate,
     current_user: dict = Depends(get_current_user),
 ):
@@ -123,7 +123,7 @@ async def update_current_user(
     },
 )
 @limiter.limit("300/minute")
-async def delete_current_user(_request: Request, current_user: dict = Depends(get_current_user)):
+async def delete_current_user(request: Request, current_user: dict = Depends(get_current_user)):
     pool = await database.get_db_pool()
     if pool is None:
         raise HTTPException(status_code=500, detail="Database error")

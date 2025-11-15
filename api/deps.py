@@ -1,6 +1,6 @@
 import logging
 import re
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from urllib.parse import urlparse
 
 import bcrypt

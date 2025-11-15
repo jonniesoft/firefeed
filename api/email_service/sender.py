@@ -1,13 +1,17 @@
 import logging
-from datetime import UTC, datetime
+from datetime import datetime, UTC
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from aiosmtplib import send
 from jinja2 import Environment, FileSystemLoader
 
 from config import SMTP_CONFIG
+
+if TYPE_CHECKING:
+    from api.email_service.types import SMTPConfig
 
 # Настройка логирования
 logger = logging.getLogger("email_service.sender")
@@ -16,8 +20,8 @@ logger.setLevel(logging.INFO)
 
 class EmailSender:
     def __init__(self):
-        self.smtp_config = SMTP_CONFIG
-        self.sender_email = self.smtp_config["email"]
+        self.smtp_config: SMTPConfig = SMTP_CONFIG  # type: ignore[assignment]
+        self.sender_email: str = self.smtp_config["email"]  # type: ignore[typeddict-item]
 
         # Настройка Jinja2 для загрузки шаблонов
         template_dir = Path(__file__).parent / "templates"
@@ -43,10 +47,10 @@ class EmailSender:
         )
         try:
             # Создаем сообщение
-            message = MIMEMultipart("alternative")
-            message["Subject"] = self._get_reset_subject(language)
-            message["From"] = self.sender_email
-            message["To"] = to_email
+            message = MIMEMultipart("alternative")  # type: ignore[assignment]
+            message["Subject"] = self._get_reset_subject(language)  # type: ignore[assignment]
+            message["From"] = self.sender_email  # type: ignore[assignment]
+            message["To"] = to_email  # type: ignore[assignment]
 
             # Получаем содержимое письма из шаблонов
             text_content = self._get_reset_text_content(reset_token, language)
@@ -62,15 +66,15 @@ class EmailSender:
 
             # Отправляем email асинхронно с таймаутами (connect/read/write по 10 секунд)
             # Для порта 465 используем SSL, для других портов - TLS
-            use_ssl = self.smtp_config["port"] == 465
-            use_start_tls = self.smtp_config.get("use_tls", False) and not use_ssl
+            use_ssl = self.smtp_config["port"] == 465  # type: ignore[typeddict-item]
+            use_start_tls = self.smtp_config.get("use_tls", False) and not use_ssl  # type: ignore[typeddict-item]
 
             await send(
                 message,
-                hostname=self.smtp_config["server"],
-                port=self.smtp_config["port"],
+                hostname=self.smtp_config["server"],  # type: ignore[typeddict-item]
+                port=self.smtp_config["port"],  # type: ignore[typeddict-item]
                 username=self.sender_email,
-                password=self.smtp_config["password"],
+                password=self.smtp_config["password"],  # type: ignore[typeddict-item]
                 start_tls=use_start_tls,
                 use_tls=use_ssl,
                 timeout=10,
@@ -114,10 +118,10 @@ class EmailSender:
         )
         try:
             # Создаем сообщение
-            message = MIMEMultipart("alternative")
-            message["Subject"] = self._get_subject(language)
-            message["From"] = self.sender_email
-            message["To"] = to_email
+            message = MIMEMultipart("alternative")  # type: ignore[assignment]
+            message["Subject"] = self._get_subject(language)  # type: ignore[assignment]
+            message["From"] = self.sender_email  # type: ignore[assignment]
+            message["To"] = to_email  # type: ignore[assignment]
 
             # Получаем содержимое письма из шаблонов
             text_content = self._get_text_content(verification_code, language)
@@ -133,15 +137,15 @@ class EmailSender:
 
             # Отправляем email асинхронно с таймаутом 10 секунд
             # Для порта 465 используем SSL, для других портов - TLS
-            use_ssl = self.smtp_config["port"] == 465
-            use_start_tls = self.smtp_config.get("use_tls", False) and not use_ssl
+            use_ssl = self.smtp_config["port"] == 465  # type: ignore[typeddict-item]
+            use_start_tls = self.smtp_config.get("use_tls", False) and not use_ssl  # type: ignore[typeddict-item]
 
             await send(
                 message,
-                hostname=self.smtp_config["server"],
-                port=self.smtp_config["port"],
+                hostname=self.smtp_config["server"],  # type: ignore[typeddict-item]
+                port=self.smtp_config["port"],  # type: ignore[typeddict-item]
                 username=self.sender_email,
-                password=self.smtp_config["password"],
+                password=self.smtp_config["password"],  # type: ignore[typeddict-item]
                 start_tls=use_start_tls,
                 use_tls=use_ssl,
                 timeout=10,

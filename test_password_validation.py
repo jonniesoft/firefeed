@@ -2,9 +2,10 @@
 """
 Test script for password validation
 """
+
 import sys
 
-sys.path.append('/root/firefeed')
+sys.path.append("/root/firefeed")
 
 from api.models import PasswordResetConfirm, UserCreate
 
@@ -60,6 +61,7 @@ def test_password_validation():
         print("✅ Valid reset password accepted")
     except Exception as e:
         print(f"❌ Valid reset password rejected: {e}")
+
 
 if __name__ == "__main__":
     print("Testing password validation...")

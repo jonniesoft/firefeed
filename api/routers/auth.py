@@ -1,7 +1,7 @@
 import logging
 import random
 import secrets
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, UTC
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
@@ -61,7 +61,7 @@ router = APIRouter(
 )
 @limiter.limit("5/minute")
 async def register_user(
-    _request: Request, user: models.UserCreate, background_tasks: BackgroundTasks
+    request: Request, user: models.UserCreate, background_tasks: BackgroundTasks
 ):
     pool = await database.get_db_pool()
     if pool is None:
@@ -140,14 +140,14 @@ async def register_user(
     },
 )
 @limiter.limit("300/minute")
-async def verify_user(request: models.EmailVerificationRequest):
+async def verify_user(request: Request, email_verification: models.EmailVerificationRequest):
     pool = await database.get_db_pool()
     if pool is None:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error"
         )
 
-    user = await database.get_user_by_email(pool, request.email)
+    user = await database.get_user_by_email(pool, email_verification.email)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid verification code or email"
@@ -155,7 +155,9 @@ async def verify_user(request: models.EmailVerificationRequest):
     if user.get("is_active"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User already verified")
 
-    ok = await database.activate_user_and_use_verification_code(pool, user["id"], request.code)
+    ok = await database.activate_user_and_use_verification_code(
+        pool, user["id"], email_verification.code
+    )
     if not ok:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid verification code or email"
@@ -195,7 +197,7 @@ async def verify_user(request: models.EmailVerificationRequest):
     },
 )
 @limiter.limit("10/minute")
-async def login_user(_request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
+async def login_user(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
     pool = await database.get_db_pool()
     if pool is None:
         raise HTTPException(
@@ -265,7 +267,7 @@ async def login_user(_request: Request, form_data: OAuth2PasswordRequestForm = D
 )
 @limiter.limit("300/minute")
 async def request_password_reset(
-    _request: Request,
+    request: Request,
     password_reset_request: models.PasswordResetRequest,
     background_tasks: BackgroundTasks,
 ):
@@ -347,7 +349,7 @@ async def request_password_reset(
 )
 @limiter.limit("300/minute")
 async def confirm_password_reset(
-    _request: Request, password_reset_confirm: models.PasswordResetConfirm
+    request: Request, password_reset_confirm: models.PasswordResetConfirm
 ):
     pool = await database.get_db_pool()
     if pool is None:

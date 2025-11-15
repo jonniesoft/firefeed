@@ -51,7 +51,7 @@ router = APIRouter(
 )
 @limiter.limit("300/minute")
 async def create_user_rss_feed(
-    _request: Request,
+    request: Request,
     feed: models.UserRSSFeedCreate,
     current_user: dict = Depends(get_current_user),
 ):
@@ -102,7 +102,7 @@ async def create_user_rss_feed(
 )
 @limiter.limit("300/minute")
 async def get_user_rss_feeds(
-    _request: Request,
+    request: Request,
     limit: int = Query(50, le=100, gt=0, description="Number of feeds per page (1-100)"),
     offset: int = Query(0, ge=0, description="Number of feeds to skip"),
     current_user: dict = Depends(get_current_user),
@@ -144,7 +144,7 @@ async def get_user_rss_feeds(
 )
 @limiter.limit("300/minute")
 async def get_user_rss_feed(
-    _request: Request, feed_id: int, current_user: dict = Depends(get_current_user)
+    request: Request, feed_id: int, current_user: dict = Depends(get_current_user)
 ):
     pool = await database.get_db_pool()
     if pool is None:
@@ -188,7 +188,7 @@ async def get_user_rss_feed(
 )
 @limiter.limit("300/minute")
 async def update_user_rss_feed(
-    _request: Request,
+    request: Request,
     feed_id: int,
     feed_update: models.UserRSSFeedUpdate,
     current_user: dict = Depends(get_current_user),
@@ -243,7 +243,7 @@ async def update_user_rss_feed(
 )
 @limiter.limit("300/minute")
 async def delete_user_rss_feed(
-    _request: Request, feed_id: int, current_user: dict = Depends(get_current_user)
+    request: Request, feed_id: int, current_user: dict = Depends(get_current_user)
 ):
     pool = await database.get_db_pool()
     if pool is None:

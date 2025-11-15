@@ -4,18 +4,18 @@ import hashlib
 import logging
 import os
 import traceback
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, UTC
 
 import aiohttp
 import feedparser
 import pytz
 
 from config import (
+    get_shared_db_pool,
     IMAGES_ROOT_DIR,
     MAX_CONCURRENT_FEEDS,
     MAX_ENTRIES_PER_FEED,
     MAX_TOTAL_RSS_ITEMS,
-    get_shared_db_pool,
 )
 from utils.image import ImageProcessor
 
@@ -813,7 +813,9 @@ class RSSManager:
 
                     # - Проверка дубликатов и генерация эмбеддинга -
                     try:
-                        from firefeed_dublicate_detector import FireFeedDuplicateDetector
+                        from firefeed_dublicate_detector import (
+                            FireFeedDuplicateDetector,
+                        )
 
                         detector = FireFeedDuplicateDetector()
                         is_unique = await detector.process_rss_item(

@@ -1,7 +1,7 @@
 # database.py
 import logging
 import sys
-from datetime import UTC, datetime
+from datetime import datetime, UTC
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))

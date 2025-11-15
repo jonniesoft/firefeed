@@ -83,6 +83,7 @@ class TestDatabaseFunctions:
     @pytest.fixture
     def mock_db_session(self, mock_pool, mock_conn, mock_cur):
         """Настраивает моки для асинхронного контекстного менеджера БД."""
+
         # Создаем простой класс для async context manager
         class AsyncContextManager:
             def __init__(self, return_value):
@@ -97,11 +98,13 @@ class TestDatabaseFunctions:
         # Настраиваем pool.acquire() как обычный метод (не AsyncMock)
         def acquire():
             return AsyncContextManager(mock_conn)
+
         mock_pool.acquire = acquire
 
         # Настраиваем conn.cursor() как обычный метод
         def cursor():
             return AsyncContextManager(mock_cur)
+
         mock_conn.cursor = cursor
 
         return mock_pool
@@ -109,6 +112,7 @@ class TestDatabaseFunctions:
     @pytest.fixture
     def async_db_session(self, mock_pool, mock_conn, async_cursor):
         """Настраивает моки для асинхронного контекстного менеджера БД с async cursor."""
+
         # Создаем простой класс для async context manager
         class AsyncContextManager:
             def __init__(self, return_value):
@@ -123,11 +127,13 @@ class TestDatabaseFunctions:
         # Настраиваем pool.acquire() как обычный метод (не AsyncMock)
         def acquire():
             return AsyncContextManager(mock_conn)
+
         mock_pool.acquire = acquire
 
         # Настраиваем conn.cursor() как обычный метод
         def cursor():
             return AsyncContextManager(async_cursor)
+
         mock_conn.cursor = cursor
 
         return mock_pool
@@ -249,7 +255,9 @@ class TestDatabaseFunctions:
             ("updated_at",),
         ]
 
-        result = await update_user(mock_db_session, 1, {"email": "new@example.com", "language": "es"})
+        result = await update_user(
+            mock_db_session, 1, {"email": "new@example.com", "language": "es"}
+        )
         assert result["email"] == "new@example.com"
 
     async def test_update_user_no_changes(self, mock_db_session, mock_cur):
@@ -367,7 +375,6 @@ class TestDatabaseFunctions:
         assert result is None
 
     async def test_delete_password_reset_token_success(self, mock_db_session, mock_cur):
-
         result = await delete_password_reset_token(mock_db_session, "token123")
         assert result is True
 
@@ -383,7 +390,9 @@ class TestDatabaseFunctions:
         result = await get_all_category_ids(mock_db_session)
         assert result == {1, 2, 3}
 
-    @pytest.mark.skip(reason="Async mock iterator not working - TODO: fix with real DB or proper async mock")
+    @pytest.mark.skip(
+        reason="Async mock iterator not working - TODO: fix with real DB or proper async mock"
+    )
     async def test_get_user_categories_success(self, async_db_session, async_cursor):
         # Create async iterator class
         class AsyncIterator:
@@ -438,7 +447,9 @@ class TestDatabaseFunctions:
         )
         assert result["name"] == "Test Feed"
 
-    @pytest.mark.skip(reason="Async mock iterator not working - TODO: fix with real DB or proper async mock")
+    @pytest.mark.skip(
+        reason="Async mock iterator not working - TODO: fix with real DB or proper async mock"
+    )
     async def test_get_user_rss_feeds_success(self, mock_db_session, mock_cur):
         mock_cur.fetchone = AsyncMock(
             side_effect=[
@@ -521,9 +532,7 @@ class TestDatabaseFunctions:
         result = await delete_user_rss_feed(mock_db_session, 1, 1)
         assert result is True
 
-    async def test_activate_user_and_use_verification_code_success(
-        self, mock_db_session, mock_cur
-    ):
+    async def test_activate_user_and_use_verification_code_success(self, mock_db_session, mock_cur):
         mock_cur.fetchone.return_value = (1,)
 
         result = await activate_user_and_use_verification_code(mock_db_session, 1, "123456")
@@ -533,10 +542,14 @@ class TestDatabaseFunctions:
         mock_cur.fetchone.return_value = (1, datetime.now(UTC) + timedelta(hours=1))
         mock_cur.rowcount = 1
 
-        result = await confirm_password_reset_transaction(mock_db_session, "token123", "new_hashed_pass")
+        result = await confirm_password_reset_transaction(
+            mock_db_session, "token123", "new_hashed_pass"
+        )
         assert result is True
 
-    @pytest.mark.skip(reason="Async mock iterator not working - TODO: fix with real DB or proper async mock")
+    @pytest.mark.skip(
+        reason="Async mock iterator not working - TODO: fix with real DB or proper async mock"
+    )
     async def test_get_all_categories_list_success(self, mock_db_session, mock_cur):
         mock_cur.fetchone = AsyncMock(side_effect=[(2,), (1, "Tech"), (2, "Sports"), None])
 
@@ -545,7 +558,9 @@ class TestDatabaseFunctions:
         assert len(results) == 2
         assert results[0]["name"] == "Tech"
 
-    @pytest.mark.skip(reason="Async mock iterator not working - TODO: fix with real DB or proper async mock")
+    @pytest.mark.skip(
+        reason="Async mock iterator not working - TODO: fix with real DB or proper async mock"
+    )
     async def test_get_all_sources_list_success(self, mock_db_session, mock_cur):
         mock_cur.fetchone = AsyncMock(
             side_effect=[(2,), (1, "BBC", "Description", "bbc", "logo.png", "http://bbc.com"), None]
@@ -556,7 +571,9 @@ class TestDatabaseFunctions:
         assert len(results) == 1
         assert results[0]["name"] == "BBC"
 
-    @pytest.mark.skip(reason="Async mock iterator not working - TODO: fix with real DB or proper async mock")
+    @pytest.mark.skip(
+        reason="Async mock iterator not working - TODO: fix with real DB or proper async mock"
+    )
     async def test_get_recent_rss_items_for_broadcast_success(self, mock_db_session, mock_cur):
         mock_cur.fetchone = AsyncMock(
             side_effect=[

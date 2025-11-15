@@ -23,18 +23,24 @@ from telegram.ext import (
     CallbackQueryHandler,
     CommandHandler,
     ContextTypes,
-    MessageHandler,
     filters,
+    MessageHandler,
 )
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from config import BOT_TOKEN, CHANNEL_CATEGORIES, CHANNEL_IDS, WEBHOOK_CONFIG, get_shared_db_pool
+from config import (
+    BOT_TOKEN,
+    CHANNEL_CATEGORIES,
+    CHANNEL_IDS,
+    get_shared_db_pool,
+    WEBHOOK_CONFIG,
+)
 from firefeed_translations import (
+    get_message,
     LANG_NAMES,
     READ_MORE_LABELS,
     SOURCE_LABELS,
     TRANSLATED_FROM_LABELS,
-    get_message,
 )
 from logging_config import setup_logging
 from user_manager import UserManager

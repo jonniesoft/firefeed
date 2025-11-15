@@ -8,14 +8,15 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from api import database
 from api.middleware import setup_middleware
-from api.routers import auth as auth_router
-from api.routers import categories as categories_router
-from api.routers import rss_feeds as rss_feeds_router
-from api.routers import rss_items as rss_items_router
-from api.routers import telegram as telegram_router
-from api.routers import users as users_router
-from api.websocket import check_for_new_rss_items
-from api.websocket import router as ws_router
+from api.routers import (
+    auth as auth_router,
+    categories as categories_router,
+    rss_feeds as rss_feeds_router,
+    rss_items as rss_items_router,
+    telegram as telegram_router,
+    users as users_router,
+)
+from api.websocket import check_for_new_rss_items, router as ws_router
 from logging_config import setup_logging
 
 setup_logging()
