@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Переходим в каталог проекта для корректной работы UV
+cd /root/firefeed
+
 # Запускаем FastAPI через uvicorn с зафиксированными зависимостями
 # UV использует .python-version (3.13) и uv.lock для детерминированного окружения
-uv run --frozen uvicorn api.main:app --host 127.0.0.1 --port 8000
+# Флаг --no-sync пропускает проверку синхронизации (окружение уже синхронизировано при деплое)
+# Флаг --frozen гарантирует, что uv.lock не будет изменён
+uv run --no-sync --frozen uvicorn api.main:app --host 127.0.0.1 --port 8000
