@@ -47,3 +47,6 @@ cover/
 .gemini/
 fix_sim117.py
 start_serena_mcp.sh
+
+# Reports
+report/

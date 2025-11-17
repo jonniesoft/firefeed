@@ -4,7 +4,7 @@ This module provides utilities to safely handle potentially None values,
 type conversions, and dynamic types from external libraries.
 """
 
-from typing import Any, TypeVar, cast
+from typing import Any, cast, TypeVar
 
 T = TypeVar("T")
 

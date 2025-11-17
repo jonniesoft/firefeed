@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import datetime, UTC
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -77,6 +77,7 @@ class TestRSSManager:
                 self._index = 0
                 self.description = None
                 self._fetchone_index = 0
+                self.rowcount = 0  # Добавлен атрибут rowcount
 
             async def __aenter__(self):
                 return self
@@ -247,70 +248,72 @@ class TestRSSManager:
             assert len(result) == 1
             assert result[0]["source"] == "BBC"
 
-    async def test_add_feed_success(self, rss_manager, mock_db_session, mock_cur):
+    async def test_add_feed_success(self, rss_manager, mock_db_session, mock_cur, async_cursor):
         with patch("rss_manager.get_shared_db_pool", return_value=mock_db_session):
-            mock_cur.fetchone = AsyncMock(side_effect=[(1,), (1,)])
+            # Настраиваем async_cursor для возврата ID категории и источника
+            async_cursor._rows = [(1,), (1,)]
 
             result = await rss_manager.add_feed("http://example.com/rss", "Tech", "BBC", "en")
             assert result is True
 
-    async def test_add_feed_category_not_found(self, rss_manager, mock_db_session, mock_cur):
+    async def test_add_feed_category_not_found(self, rss_manager, mock_db_session, mock_cur, async_cursor):
         with patch("rss_manager.get_shared_db_pool", return_value=mock_db_session):
-            mock_cur.fetchone.return_value = None
+            # Категория не найдена
+            async_cursor._rows = []
 
             result = await rss_manager.add_feed(
                 "http://example.com/rss", "NonExistent", "BBC", "en"
             )
             assert result is False
 
-    async def test_update_feed_success(self, rss_manager, mock_db_session, mock_cur):
+    async def test_update_feed_success(self, rss_manager, mock_db_session, mock_cur, async_cursor):
         with patch("rss_manager.get_shared_db_pool", return_value=mock_db_session):
-            mock_cur.fetchone = AsyncMock(side_effect=[(1,), (1,)])
-            mock_cur.rowcount = 1
+            async_cursor._rows = [(1,), (1,)]
+            async_cursor.rowcount = 1  # Устанавливаем rowcount
 
             result = await rss_manager.update_feed(1, name="Updated Feed")
             assert result is True
 
-    async def test_delete_feed_success(self, rss_manager, mock_db_session, mock_cur):
+    async def test_delete_feed_success(self, rss_manager, mock_db_session, mock_cur, async_cursor):
         with patch("rss_manager.get_shared_db_pool", return_value=mock_db_session):
-            mock_cur.rowcount = 1
+            async_cursor.rowcount = 1  # Устанавливаем rowcount
 
             result = await rss_manager.delete_feed(1)
             assert result is True
 
     async def test_get_feed_cooldown_minutes_success(
-        self, rss_manager, mock_pool, mock_conn, mock_cur
+        self, rss_manager, mock_pool, mock_conn, mock_cur, async_cursor
     ):
         with patch("rss_manager.get_shared_db_pool", return_value=mock_pool):
-            mock_cur.fetchone.return_value = (30,)
+            async_cursor._rows = [(30,)]
 
             result = await rss_manager.get_feed_cooldown_minutes(1)
             assert result == 30
 
     async def test_get_feed_cooldown_minutes_default(
-        self, rss_manager, mock_pool, mock_conn, mock_cur
+        self, rss_manager, mock_pool, mock_conn, mock_cur, async_cursor
     ):
         with patch("rss_manager.get_shared_db_pool", return_value=mock_pool):
-            mock_cur.fetchone.return_value = None
+            async_cursor._rows = []  # Нет результатов
 
             result = await rss_manager.get_feed_cooldown_minutes(1)
             assert result == 60
 
     async def test_get_max_news_per_hour_for_feed_success(
-        self, rss_manager, mock_pool, mock_conn, mock_cur
+        self, rss_manager, mock_pool, mock_conn, mock_cur, async_cursor
     ):
         with patch("rss_manager.get_shared_db_pool", return_value=mock_pool):
-            mock_cur.fetchone.return_value = (5,)
+            async_cursor._rows = [(5,)]
 
             result = await rss_manager.get_max_news_per_hour_for_feed(1)
             assert result == 5
 
     async def test_get_last_published_time_for_feed_success(
-        self, rss_manager, mock_pool, mock_conn, mock_cur
+        self, rss_manager, mock_pool, mock_conn, mock_cur, async_cursor
     ):
         with patch("rss_manager.get_shared_db_pool", return_value=mock_pool):
             fixed_dt = datetime(2020, 1, 1, 12, 0, 0, tzinfo=UTC)
-            mock_cur.fetchone.return_value = (fixed_dt,)
+            async_cursor._rows = [(fixed_dt,)]
 
             result = await rss_manager.get_last_published_time_for_feed(1)
             assert isinstance(result, datetime)
@@ -318,10 +321,10 @@ class TestRSSManager:
             assert result.tzinfo == UTC
 
     async def test_get_recent_rss_items_count_for_feed_success(
-        self, rss_manager, mock_pool, mock_conn, mock_cur
+        self, rss_manager, mock_pool, mock_conn, mock_cur, async_cursor
     ):
         with patch("rss_manager.get_shared_db_pool", return_value=mock_pool):
-            mock_cur.fetchone.return_value = (5,)
+            async_cursor._rows = [(5,)]
 
             result = await rss_manager.get_recent_rss_items_count_for_feed(1, 60)
             assert result == 5
@@ -376,9 +379,9 @@ class TestRSSManager:
             result = await rss_manager.validate_rss_feed("http://example.com/rss", headers)
             assert result is False
 
-    async def test_save_rss_item_to_db_success(self, rss_manager, mock_db_session, mock_cur):
+    async def test_save_rss_item_to_db_success(self, rss_manager, mock_db_session, mock_cur, async_cursor):
         with patch("rss_manager.get_shared_db_pool", return_value=mock_db_session):
-            mock_cur.fetchone.return_value = (1,)  # category_id
+            async_cursor._rows = [(1,)]  # category_id
 
             rss_item = {
                 "id": "test_news_id",
@@ -395,7 +398,7 @@ class TestRSSManager:
             assert result == "test_news_id"
 
     async def test_save_rss_item_to_db_category_not_found(
-        self, rss_manager, mock_pool, mock_conn, mock_cur
+        self, rss_manager, mock_pool, mock_conn, mock_cur, async_cursor
     ):
         with patch("rss_manager.get_shared_db_pool", return_value=mock_pool):
             mock_cur.fetchone.return_value = None  # category not found
@@ -484,7 +487,7 @@ class TestRSSManager:
                     "http://example.com",
                 ),
             ]
-            mock_cur.description = [
+            async_cursor.description = [
                 ("news_id",),
                 ("original_title",),
                 ("original_content",),
@@ -508,8 +511,8 @@ class TestRSSManager:
         self, rss_manager, mock_db_session, mock_cur, async_cursor
     ):
         with patch("rss_manager.get_shared_db_pool", return_value=mock_db_session):
-            mock_cur.rowcount = 5
-            mock_cur.description = None
+            async_cursor.rowcount = 5
+            async_cursor.description = None
 
             result = await rss_manager.cleanup_duplicates()
             assert result == []

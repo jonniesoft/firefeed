@@ -1403,6 +1403,7 @@ class RSSManager:
 
                 deleted_count = cur.rowcount
                 logger.info(f"[CLEANUP] Удалено {deleted_count} дубликатов")
+                return []  # Возвращаем пустой список при успехе
 
         except Exception as e:
             logger.error(f"[CLEANUP] Ошибка при очистке дубликатов: {e}")

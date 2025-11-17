@@ -9,7 +9,6 @@ from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 
 import psutil
-
 # Импортируем терминологический словарь
 from firefeed_translator_terminology_dict import TERMINOLOGY_DICT
 from transformers import M2M100ForConditionalGeneration, M2M100Tokenizer
