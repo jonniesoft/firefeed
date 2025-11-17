@@ -46,7 +46,7 @@ router = APIRouter(
 )
 @limiter.limit("300/minute")
 async def get_user_categories(
-    request: Request,
+    _request: Request,
     current_user: dict = Depends(get_current_user),
     source_ids: list[int] | None = Query(None, description="Filter by associated source IDs"),
 ):
@@ -87,7 +87,7 @@ async def get_user_categories(
 )
 @limiter.limit("300/minute")
 async def update_user_categories(
-    request: Request,
+    _request: Request,
     category_update: models.UserCategoriesUpdate,
     current_user: dict = Depends(get_current_user),
 ):

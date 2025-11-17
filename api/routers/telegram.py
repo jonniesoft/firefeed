@@ -50,7 +50,7 @@ router = APIRouter(
 )
 @limiter.limit("300/minute")
 async def generate_telegram_link_code(
-    request: Request, current_user: dict = Depends(get_current_user)
+    _request: Request, current_user: dict = Depends(get_current_user)
 ):
     from user_manager import UserManager
 
@@ -90,7 +90,7 @@ async def generate_telegram_link_code(
 )
 @limiter.limit("300/minute")
 async def unlink_telegram_account(
-    request: Request, current_user: dict = Depends(get_current_user)
+    _request: Request, current_user: dict = Depends(get_current_user)
 ):
     from user_manager import UserManager
 
@@ -128,7 +128,7 @@ async def unlink_telegram_account(
 )
 @limiter.limit("300/minute")
 async def get_telegram_link_status(
-    request: Request, current_user: dict = Depends(get_current_user)
+    _request: Request, current_user: dict = Depends(get_current_user)
 ):
     pool = await database.get_db_pool()
     if pool is None:
