@@ -1,10 +1,10 @@
 import logging
-from typing import Optional, List, Set
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
-from api.middleware import limiter
 from api import database, models
 from api.deps import get_current_user
+from api.middleware import limiter
 
 logger = logging.getLogger(__name__)
 
@@ -14,11 +14,9 @@ router = APIRouter(
     responses={
         401: {"description": "Unauthorized - Authentication required"},
         429: {"description": "Too Many Requests - Rate limit exceeded"},
-        500: {"description": "Internal Server Error"}
-    }
+        500: {"description": "Internal Server Error"},
+    },
 )
-
-
 
 
 @router.get(
@@ -39,18 +37,18 @@ router = APIRouter(
     responses={
         200: {
             "description": "User's subscribed categories",
-            "model": models.UserCategoriesResponse
+            "model": models.UserCategoriesResponse,
         },
         401: {"description": "Unauthorized - Authentication required"},
         429: {"description": "Too Many Requests - Rate limit exceeded"},
-        500: {"description": "Internal Server Error"}
-    }
+        500: {"description": "Internal Server Error"},
+    },
 )
 @limiter.limit("300/minute")
 async def get_user_categories(
-    request: Request,
+    _request: Request,
     current_user: dict = Depends(get_current_user),
-    source_ids: Optional[List[int]] = Query(None, description="Filter by associated source IDs"),
+    source_ids: list[int] | None = Query(None, description="Filter by associated source IDs"),
 ):
     pool = await database.get_db_pool()
     if pool is None:
@@ -77,25 +75,23 @@ async def get_user_categories(
     **Rate limit:** 300 requests per minute
     """,
     responses={
-        200: {
-            "description": "Categories updated successfully",
-            "model": models.SuccessResponse
-        },
+        200: {"description": "Categories updated successfully", "model": models.SuccessResponse},
         400: {
             "description": "Bad Request - Invalid category IDs provided",
-            "model": models.HTTPError
+            "model": models.HTTPError,
         },
         401: {"description": "Unauthorized - Authentication required"},
         429: {"description": "Too Many Requests - Rate limit exceeded"},
-        500: {"description": "Internal Server Error"}
-    }
+        500: {"description": "Internal Server Error"},
+    },
 )
 @limiter.limit("300/minute")
 async def update_user_categories(
-    request: Request,
-    category_update: models.UserCategoriesUpdate, current_user: dict = Depends(get_current_user)
+    _request: Request,
+    category_update: models.UserCategoriesUpdate,
+    current_user: dict = Depends(get_current_user),
 ):
-    category_ids: Set[int] = category_update.category_ids
+    category_ids: set[int] = category_update.category_ids
     pool = await database.get_db_pool()
     if pool is None:
         raise HTTPException(status_code=500, detail="Database error")

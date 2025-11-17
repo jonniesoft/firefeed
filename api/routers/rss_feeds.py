@@ -1,10 +1,10 @@
 import logging
-from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
-from api.middleware import limiter
 from api import database, models
 from api.deps import get_current_user, validate_rss_url
+from api.middleware import limiter
 
 logger = logging.getLogger(__name__)
 
@@ -15,8 +15,8 @@ router = APIRouter(
         401: {"description": "Unauthorized - Authentication required"},
         403: {"description": "Forbidden - Access to resource denied"},
         429: {"description": "Too Many Requests - Rate limit exceeded"},
-        500: {"description": "Internal Server Error"}
-    }
+        500: {"description": "Internal Server Error"},
+    },
 )
 
 
@@ -39,21 +39,22 @@ router = APIRouter(
     **Rate limit:** 300 requests per minute
     """,
     responses={
-        201: {
-            "description": "RSS feed successfully created",
-            "model": models.UserRSSFeedResponse
-        },
+        201: {"description": "RSS feed successfully created", "model": models.UserRSSFeedResponse},
         400: {
             "description": "Bad Request - Invalid URL or feed name too long",
-            "model": models.HTTPError
+            "model": models.HTTPError,
         },
         401: {"description": "Unauthorized - Authentication required"},
         429: {"description": "Too Many Requests - Rate limit exceeded"},
-        500: {"description": "Internal Server Error"}
-    }
+        500: {"description": "Internal Server Error"},
+    },
 )
 @limiter.limit("300/minute")
-async def create_user_rss_feed(request: Request, feed: models.UserRSSFeedCreate, current_user: dict = Depends(get_current_user)):
+async def create_user_rss_feed(
+    _request: Request,
+    feed: models.UserRSSFeedCreate,
+    current_user: dict = Depends(get_current_user),
+):
     # Validate RSS URL
     if not validate_rss_url(feed.url):
         raise HTTPException(status_code=400, detail="Invalid RSS URL format")
@@ -92,16 +93,16 @@ async def create_user_rss_feed(request: Request, feed: models.UserRSSFeedCreate,
     responses={
         200: {
             "description": "List of user RSS feeds",
-            "model": models.PaginatedResponse[models.UserRSSFeedResponse]
+            "model": models.PaginatedResponse[models.UserRSSFeedResponse],
         },
         401: {"description": "Unauthorized - Authentication required"},
         429: {"description": "Too Many Requests - Rate limit exceeded"},
-        500: {"description": "Internal Server Error"}
-    }
+        500: {"description": "Internal Server Error"},
+    },
 )
 @limiter.limit("300/minute")
 async def get_user_rss_feeds(
-    request: Request,
+    _request: Request,
     limit: int = Query(50, le=100, gt=0, description="Number of feeds per page (1-100)"),
     offset: int = Query(0, ge=0, description="Number of feeds to skip"),
     current_user: dict = Depends(get_current_user),
@@ -111,7 +112,9 @@ async def get_user_rss_feeds(
         raise HTTPException(status_code=500, detail="Database error")
     feeds = await database.get_user_rss_feeds(pool, current_user["id"], limit, offset)
     feed_models = [models.UserRSSFeedResponse(**feed) for feed in feeds]
-    return models.PaginatedResponse[models.UserRSSFeedResponse](count=len(feed_models), results=feed_models)
+    return models.PaginatedResponse[models.UserRSSFeedResponse](
+        count=len(feed_models), results=feed_models
+    )
 
 
 @router.get(
@@ -129,21 +132,20 @@ async def get_user_rss_feeds(
     **Rate limit:** 300 requests per minute
     """,
     responses={
-        200: {
-            "description": "RSS feed details",
-            "model": models.UserRSSFeedResponse
-        },
+        200: {"description": "RSS feed details", "model": models.UserRSSFeedResponse},
         401: {"description": "Unauthorized - Authentication required"},
         404: {
             "description": "Not Found - RSS feed not found or doesn't belong to user",
-            "model": models.HTTPError
+            "model": models.HTTPError,
         },
         429: {"description": "Too Many Requests - Rate limit exceeded"},
-        500: {"description": "Internal Server Error"}
-    }
+        500: {"description": "Internal Server Error"},
+    },
 )
 @limiter.limit("300/minute")
-async def get_user_rss_feed(request: Request, feed_id: int, current_user: dict = Depends(get_current_user)):
+async def get_user_rss_feed(
+    _request: Request, feed_id: int, current_user: dict = Depends(get_current_user)
+):
     pool = await database.get_db_pool()
     if pool is None:
         raise HTTPException(status_code=500, detail="Database error")
@@ -173,25 +175,24 @@ async def get_user_rss_feed(request: Request, feed_id: int, current_user: dict =
     **Rate limit:** 300 requests per minute
     """,
     responses={
-        200: {
-            "description": "RSS feed successfully updated",
-            "model": models.UserRSSFeedResponse
-        },
-        400: {
-            "description": "Bad Request - Invalid feed name length",
-            "model": models.HTTPError
-        },
+        200: {"description": "RSS feed successfully updated", "model": models.UserRSSFeedResponse},
+        400: {"description": "Bad Request - Invalid feed name length", "model": models.HTTPError},
         401: {"description": "Unauthorized - Authentication required"},
         404: {
             "description": "Not Found - RSS feed not found or doesn't belong to user",
-            "model": models.HTTPError
+            "model": models.HTTPError,
         },
         429: {"description": "Too Many Requests - Rate limit exceeded"},
-        500: {"description": "Internal Server Error"}
-    }
+        500: {"description": "Internal Server Error"},
+    },
 )
 @limiter.limit("300/minute")
-async def update_user_rss_feed(request: Request, feed_id: int, feed_update: models.UserRSSFeedUpdate, current_user: dict = Depends(get_current_user)):
+async def update_user_rss_feed(
+    _request: Request,
+    feed_id: int,
+    feed_update: models.UserRSSFeedUpdate,
+    current_user: dict = Depends(get_current_user),
+):
     # Validate input lengths
     if feed_update.name is not None and len(feed_update.name) > 255:
         raise HTTPException(status_code=400, detail="Feed name too long (max 255 characters)")
@@ -206,7 +207,9 @@ async def update_user_rss_feed(request: Request, feed_id: int, feed_update: mode
         update_data["category_id"] = feed_update.category_id
     if feed_update.is_active is not None:
         update_data["is_active"] = feed_update.is_active
-    updated_feed = await database.update_user_rss_feed(pool, current_user["id"], feed_id, update_data)
+    updated_feed = await database.update_user_rss_feed(
+        pool, current_user["id"], feed_id, update_data
+    )
     if not updated_feed:
         raise HTTPException(status_code=404, detail="RSS feed not found or failed to update")
     return models.UserRSSFeedResponse(**updated_feed)
@@ -232,14 +235,16 @@ async def update_user_rss_feed(request: Request, feed_id: int, feed_update: mode
         401: {"description": "Unauthorized - Authentication required"},
         404: {
             "description": "Not Found - RSS feed not found or doesn't belong to user",
-            "model": models.HTTPError
+            "model": models.HTTPError,
         },
         429: {"description": "Too Many Requests - Rate limit exceeded"},
-        500: {"description": "Internal Server Error"}
-    }
+        500: {"description": "Internal Server Error"},
+    },
 )
 @limiter.limit("300/minute")
-async def delete_user_rss_feed(request: Request, feed_id: int, current_user: dict = Depends(get_current_user)):
+async def delete_user_rss_feed(
+    _request: Request, feed_id: int, current_user: dict = Depends(get_current_user)
+):
     pool = await database.get_db_pool()
     if pool is None:
         raise HTTPException(status_code=500, detail="Database error")

@@ -1,7 +1,8 @@
-import os
 import asyncio
-import aiopg
 import logging
+import os
+
+import aiopg
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -10,12 +11,15 @@ load_dotenv()
 # Уровень логирования по умолчанию, переопределяемый через env var
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
+# Supported languages for translations
+SUPPORTED_LANGUAGES = ["en", "ru", "de", "fr"]
+
 # Конфигурация подключения к БД
-DB_CONFIG = {
+DB_CONFIG: dict[str, str | int] = {
     "host": os.getenv("DB_HOST", "localhost"),
-    "user": os.getenv("DB_USER"),
-    "password": os.getenv("DB_PASSWORD"),
-    "database": os.getenv("DB_NAME"),
+    "user": os.getenv("DB_USER") or "",
+    "password": os.getenv("DB_PASSWORD") or "",
+    "database": os.getenv("DB_NAME") or "",
     "port": int(os.getenv("DB_PORT", 5432)),
     "minsize": int(os.getenv("DB_MINSIZE", 5)),
     "maxsize": int(os.getenv("DB_MAXSIZE", 20)),
@@ -52,7 +56,7 @@ async def get_shared_db_pool():
         # Создаем пул внутри текущего (активного) event loop
         logger = logging.getLogger(__name__)
         logger.info("[CONFIG] Создание shared database pool...")
-        _shared_db_pool = await aiopg.create_pool(**DB_CONFIG)
+        _shared_db_pool = await aiopg.create_pool(**DB_CONFIG)  # type: ignore[arg-type]
         logger.info("[CONFIG] Shared database pool успешно создан.")
         return _shared_db_pool
 
@@ -69,7 +73,7 @@ async def close_shared_db_pool():
 
 
 # Конфигурация подключения к webhook
-WEBHOOK_CONFIG = {
+WEBHOOK_CONFIG: dict[str, str | int | None] = {
     "listen": os.getenv("WEBHOOK_LISTEN", "127.0.0.1"),
     "port": int(os.getenv("WEBHOOK_PORT", 5000)),
     "url_path": os.getenv("WEBHOOK_URL_PATH", "webhook"),
@@ -83,7 +87,12 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 FIRE_EMOJI = "🔥"
 
 # Словарь ID каналов на разных языках
-CHANNEL_IDS = {"ru": "-1002584789230", "de": "-1002959373215", "fr": "-1002910849909", "en": "-1003035894895"}
+CHANNEL_IDS = {
+    "ru": "-1002584789230",
+    "de": "-1002959373215",
+    "fr": "-1002910849909",
+    "en": "-1003035894895",
+}
 
 CHANNEL_CATEGORIES = {"world", "technology", "lifestyle", "politics", "economy", "autos", "sports"}
 
@@ -113,6 +122,5 @@ VERIFICATION_CODE_EXPIRE_HOURS = 1
 USER_DEFINED_RSS_CATEGORY_ID = 10
 
 # JWT configuration
-JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 JWT_ALGORITHM = "HS256"
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES = 30

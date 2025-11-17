@@ -1,42 +1,180 @@
 version: '3.8'
 
 services:
+  # -----------------------------------------------------------------------------
+  # PostgreSQL Database with pgvector extension
+  # -----------------------------------------------------------------------------
+  db:
+    image: docker.io/pgvector/pgvector:pg16
+    container_name: firefeed-db
+    environment:
+      - POSTGRES_DB=${DB_NAME:-firefeed}
+      - POSTGRES_USER=${DB_USER:-firefeed_user}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-your_secure_password}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=en_US.UTF-8 --lc-ctype=en_US.UTF-8
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-firefeed_user} -d ${DB_NAME:-firefeed}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - firefeed-network
+
+  # -----------------------------------------------------------------------------
+  # FireFeed API Service
+  # -----------------------------------------------------------------------------
   firefeed-api:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: firefeed-api
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     environment:
-      - DB_HOST=host.docker.internal  # Или IP хоста, если БД на хосте
+      - DB_HOST=db
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=${DB_NAME}
-      - DB_PORT=5432
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_MINSIZE=5
+      - DB_MAXSIZE=20
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - BOT_TOKEN=${BOT_TOKEN}
       - SMTP_SERVER=${SMTP_SERVER}
-      - SMTP_PORT=465
+      - SMTP_PORT=${SMTP_PORT:-465}
       - SMTP_EMAIL=${SMTP_EMAIL}
       - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - SMTP_USE_TLS=${SMTP_USE_TLS:-True}
       - WEBHOOK_LISTEN=0.0.0.0
-      - WEBHOOK_PORT=5000
-      - LOG_LEVEL=INFO
+      - WEBHOOK_PORT=${WEBHOOK_PORT:-5000}
+      - WEBHOOK_URL_PATH=${WEBHOOK_URL_PATH:-webhook}
+      - WEBHOOK_URL=${WEBHOOK_URL:-http://localhost:5000/webhook}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
     volumes:
-      - ./data:/app/data  # Монтируем директорию для изображений
+      - ./data:/var/www/firefeed/data/www/firefeed.net/data/images
     depends_on:
-      - db  # Если БД тоже в docker-compose
+      db:
+        condition: service_healthy
     restart: unless-stopped
+    networks:
+      - firefeed-network
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
 
-  # Пример конфигурации образа БД Postgres, если планируется использовать её внутри контейнера
-  # db:
-  #   image: postgres:13
-  #   environment:
-  #     POSTGRES_DB: firefeed
-  #     POSTGRES_USER: user
-  #     POSTGRES_PASSWORD: password
-  #   ports:
-  #     - "5432:5432"
-  #   volumes:
-  #     - postgres_data:/var/lib/postgresql/data
+  # -----------------------------------------------------------------------------
+  # FireFeed Telegram Bot Service
+  # -----------------------------------------------------------------------------
+  firefeed-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: firefeed-bot
+    env_file:
+      - .env
+    environment:
+      - DB_HOST=db
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_MINSIZE=5
+      - DB_MAXSIZE=20
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - BOT_TOKEN=${BOT_TOKEN}
+      - SMTP_SERVER=${SMTP_SERVER}
+      - SMTP_PORT=${SMTP_PORT:-465}
+      - SMTP_EMAIL=${SMTP_EMAIL}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - SMTP_USE_TLS=${SMTP_USE_TLS:-True}
+      - WEBHOOK_LISTEN=0.0.0.0
+      - WEBHOOK_PORT=${WEBHOOK_PORT:-5000}
+      - WEBHOOK_URL_PATH=${WEBHOOK_URL_PATH:-webhook}
+      - WEBHOOK_URL=${WEBHOOK_URL:-http://localhost:5000/webhook}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - ./data:/var/www/firefeed/data/www/firefeed.net/data/images
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - firefeed-network
+    command: python bot.py
 
+  # -----------------------------------------------------------------------------
+  # FireFeed RSS Parser Service
+  # -----------------------------------------------------------------------------
+  firefeed-parser:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: firefeed-parser
+    env_file:
+      - .env
+    environment:
+      - DB_HOST=db
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_MINSIZE=5
+      - DB_MAXSIZE=20
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - BOT_TOKEN=${BOT_TOKEN}
+      - SMTP_SERVER=${SMTP_SERVER}
+      - SMTP_PORT=${SMTP_PORT:-465}
+      - SMTP_EMAIL=${SMTP_EMAIL}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - SMTP_USE_TLS=${SMTP_USE_TLS:-True}
+      - WEBHOOK_LISTEN=0.0.0.0
+      - WEBHOOK_PORT=${WEBHOOK_PORT:-5000}
+      - WEBHOOK_URL_PATH=${WEBHOOK_URL_PATH:-webhook}
+      - WEBHOOK_URL=${WEBHOOK_URL:-http://localhost:5000/webhook}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - ./data:/var/www/firefeed/data/www/firefeed.net/data/images
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - firefeed-network
+    command: python rss_parser.py
+
+  # -----------------------------------------------------------------------------
+  # Redis Cache Service (Optional - for caching and job queues)
+  # -----------------------------------------------------------------------------
+  redis:
+    image: docker.io/library/redis:7-alpine
+    container_name: firefeed-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - firefeed-network
+    command: redis-server --appendonly yes
+
+# -----------------------------------------------------------------------------
+# Volumes for persistent data
+# -----------------------------------------------------------------------------
 volumes:
   postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+# -----------------------------------------------------------------------------
+# Network configuration
+# -----------------------------------------------------------------------------
+networks:
+  firefeed-network:
+    driver: bridge

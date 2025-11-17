@@ -1,10 +1,16 @@
 import logging
-from typing import Optional, Any, Callable
+from collections.abc import Awaitable, Callable
 from functools import wraps
-import asyncio
+from typing import Any, Concatenate, ParamSpec, TypeVar
+
 from config import get_shared_db_pool
 
 logger = logging.getLogger(__name__)
+
+
+# Типы для точной аннотации async-декоратора
+P = ParamSpec("P")
+R = TypeVar("R")
 
 
 class DatabaseMixin:
@@ -19,14 +25,32 @@ class DatabaseMixin:
         pass
 
 
-def db_operation(func: Callable) -> Callable:
+def db_operation[**P, R](
+    func: Callable[Concatenate[Any, Any, P], Awaitable[R]],
+) -> Callable[Concatenate[Any, P], Awaitable[R | None]]:
     """
     Декоратор для операций с базой данных.
     Автоматически получает пул, обрабатывает ошибки и логирует.
+
+    Декорируемая функция должна принимать:
+    - self (экземпляр класса) - Any
+    - pool (пул подключений БД) - добавляется автоматически декоратором
+    - *args, **kwargs (остальные параметры) - P
+
+    Возвращает:
+    - R | None: результат оригинальной функции или None при ошибке
+
+    Пример использования:
+        class MyManager(DatabaseMixin):
+            @db_operation
+            async def get_data(self, pool, user_id: int) -> dict:
+                async with pool.acquire() as conn, conn.cursor() as cur:
+                    await cur.execute("SELECT * FROM users WHERE id = %s", (user_id,))
+                    return await cur.fetchone()
     """
 
     @wraps(func)
-    async def wrapper(self, *args, **kwargs):
+    async def wrapper(self: Any, *args: P.args, **kwargs: P.kwargs) -> R | None:
         try:
             pool = await self.get_pool()
             if pool is None:

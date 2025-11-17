@@ -1,13 +1,16 @@
-import asyncio
 import logging
+from collections.abc import Callable
 from functools import wraps
-from typing import Callable, Any
+from typing import Any
+
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 logger = logging.getLogger(__name__)
 
 
-def retry_operation(max_attempts: int = 5, backoff_multiplier: float = 1.0, max_backoff: float = 30.0) -> Callable:
+def retry_operation(
+    max_attempts: int = 5, backoff_multiplier: float = 1.0, max_backoff: float = 30.0
+) -> Callable:
     """
     Декоратор для повторных попыток выполнения асинхронных операций
 
@@ -31,7 +34,9 @@ def retry_operation(max_attempts: int = 5, backoff_multiplier: float = 1.0, max_
             try:
                 return await func(*args, **kwargs)
             except Exception as e:
-                logger.warning(f"[RETRY] Попытка выполнения {func.__name__} завершилась ошибкой: {e}")
+                logger.warning(
+                    f"[RETRY] Попытка выполнения {func.__name__} завершилась ошибкой: {e}"
+                )
                 raise  # Передаем исключение дальше для tenacity
 
         return wrapper

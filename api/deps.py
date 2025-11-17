@@ -1,13 +1,13 @@
 import logging
 import re
-from datetime import datetime, timedelta
-from typing import Optional
+from datetime import datetime, timedelta, UTC
 from urllib.parse import urlparse
 
 import bcrypt
 import jwt
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from jwt.exceptions import PyJWTError
 
 import config
 
@@ -20,12 +20,12 @@ ACCESS_TOKEN_EXPIRE_MINUTES = config.JWT_ACCESS_TOKEN_EXPIRE_MINUTES
 security = HTTPBearer()
 
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(UTC) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
+        expire = datetime.now(UTC) + timedelta(minutes=15)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -44,6 +44,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
             )
         # Get full user data from database
         from api import database
+
         pool = await database.get_db_pool()
         if pool is None:
             raise HTTPException(status_code=500, detail="Database error")
@@ -61,7 +62,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
             detail="Token has expired",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    except jwt.JWTError:
+    except PyJWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",
@@ -75,7 +76,7 @@ def sanitize_search_phrase(search_phrase: str) -> str:
         return ""
 
     # Remove potentially dangerous characters and limit length
-    sanitized = re.sub(r'[^\w\s\-.,!?\'"()\[\]{}]', '', search_phrase)
+    sanitized = re.sub(r'[^\w\s\-.,!?\'"()\[\]{}]', "", search_phrase)
     return sanitized.strip()[:200]  # Limit to 200 characters
 
 
@@ -90,12 +91,10 @@ def validate_rss_url(url: str) -> bool:
         if not parsed.scheme or not parsed.netloc:
             return False
         # Only allow http/https
-        if parsed.scheme not in ['http', 'https']:
+        if parsed.scheme not in ["http", "https"]:
             return False
         # Basic domain validation
-        if not re.match(r'^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', parsed.netloc.split(':')[0]):
-            return False
-        return True
+        return bool(re.match(r"^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", parsed.netloc.split(":")[0]))
     except Exception:
         return False
 
@@ -107,13 +106,12 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         try:
             import hashlib
 
-            SECRET_KEY_LOCAL = getattr(config, "JWT_SECRET_KEY", "your-secret-key-change-in-production")
-            return (
-                hashlib.pbkdf2_hmac(
-                    "sha256", plain_password.encode("utf-8"), SECRET_KEY_LOCAL.encode("utf-8"), 100000
-                )
-                == bytes.fromhex(hashed_password)
+            SECRET_KEY_LOCAL = getattr(
+                config, "JWT_SECRET_KEY", "your-secret-key-change-in-production"
             )
+            return hashlib.pbkdf2_hmac(
+                "sha256", plain_password.encode("utf-8"), SECRET_KEY_LOCAL.encode("utf-8"), 100000
+            ) == bytes.fromhex(hashed_password)
         except (ValueError, TypeError):
             return False
 
@@ -127,7 +125,7 @@ def format_datetime(dt_obj):
     return dt_obj.isoformat() if dt_obj else None
 
 
-def get_full_image_url(image_filename: str) -> str:
+def get_full_image_url(image_filename: str) -> str | None:
     if not image_filename:
         return None
     if image_filename.startswith(("http://", "https://")):
@@ -157,8 +155,9 @@ def build_translations_dict(row_dict):
 
 def validate_rss_items_query_params(display_language, from_date, cursor_published_at):
     supported_languages = ["ru", "en", "de", "fr"]
-    from fastapi import HTTPException, status
     from datetime import datetime
+
+    from fastapi import HTTPException, status
 
     if display_language is not None and display_language not in supported_languages:
         raise HTTPException(
@@ -172,7 +171,8 @@ def validate_rss_items_query_params(display_language, from_date, cursor_publishe
             from_datetime = datetime.fromtimestamp(from_date / 1000.0)
         except (ValueError, OSError):
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="Некорректный формат timestamp в параметре from_date"
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Некорректный формат timestamp в параметре from_date",
             )
 
     before_published_at = None

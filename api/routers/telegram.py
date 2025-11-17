@@ -1,9 +1,10 @@
 import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 
-from api.middleware import limiter
 from api import database, models
 from api.deps import get_current_user
+from api.middleware import limiter
 
 logger = logging.getLogger(__name__)
 
@@ -13,11 +14,9 @@ router = APIRouter(
     responses={
         401: {"description": "Unauthorized - Authentication required"},
         429: {"description": "Too Many Requests - Rate limit exceeded"},
-        500: {"description": "Internal Server Error"}
-    }
+        500: {"description": "Internal Server Error"},
+    },
 )
-
-
 
 
 @router.post(
@@ -42,15 +41,17 @@ router = APIRouter(
     responses={
         200: {
             "description": "Linking code generated successfully",
-            "model": models.TelegramLinkResponse
+            "model": models.TelegramLinkResponse,
         },
         401: {"description": "Unauthorized - Authentication required"},
         429: {"description": "Too Many Requests - Rate limit exceeded"},
-        500: {"description": "Internal Server Error"}
-    }
+        500: {"description": "Internal Server Error"},
+    },
 )
 @limiter.limit("300/minute")
-async def generate_telegram_link_code(request: Request, current_user: dict = Depends(get_current_user)):
+async def generate_telegram_link_code(
+    _request: Request, current_user: dict = Depends(get_current_user)
+):
     from user_manager import UserManager
 
     user_manager = UserManager()
@@ -80,15 +81,17 @@ async def generate_telegram_link_code(request: Request, current_user: dict = Dep
     responses={
         200: {
             "description": "Telegram account unlinked successfully",
-            "model": models.SuccessResponse
+            "model": models.SuccessResponse,
         },
         401: {"description": "Unauthorized - Authentication required"},
         429: {"description": "Too Many Requests - Rate limit exceeded"},
-        500: {"description": "Internal Server Error"}
-    }
+        500: {"description": "Internal Server Error"},
+    },
 )
 @limiter.limit("300/minute")
-async def unlink_telegram_account(request: Request, current_user: dict = Depends(get_current_user)):
+async def unlink_telegram_account(
+    _request: Request, current_user: dict = Depends(get_current_user)
+):
     from user_manager import UserManager
 
     user_manager = UserManager()
@@ -117,17 +120,16 @@ async def unlink_telegram_account(request: Request, current_user: dict = Depends
     **Rate limit:** 300 requests per minute
     """,
     responses={
-        200: {
-            "description": "Telegram linking status",
-            "model": models.TelegramLinkStatusResponse
-        },
+        200: {"description": "Telegram linking status", "model": models.TelegramLinkStatusResponse},
         401: {"description": "Unauthorized - Authentication required"},
         429: {"description": "Too Many Requests - Rate limit exceeded"},
-        500: {"description": "Internal Server Error"}
-    }
+        500: {"description": "Internal Server Error"},
+    },
 )
 @limiter.limit("300/minute")
-async def get_telegram_link_status(request: Request, current_user: dict = Depends(get_current_user)):
+async def get_telegram_link_status(
+    _request: Request, current_user: dict = Depends(get_current_user)
+):
     pool = await database.get_db_pool()
     if pool is None:
         raise HTTPException(status_code=500, detail="Database error")

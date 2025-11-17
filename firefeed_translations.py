@@ -7,7 +7,12 @@ MESSAGES = {
         "de": "👋 Hallo, {user_name}!\nIch bin FireFeed - dein persönlicher News-Aggregator.\nVerwende das Menü unten zur Navigation:",
         "fr": "👋 Bonjour, {user_name} !\nJe suis FireFeed - votre agrégateur de nouvelles personnel.\nUtilisez le menu ci-dessous pour naviguer :",
     },
-    "menu_settings": {"en": "⚙️ Settings", "ru": "⚙️ Настройки", "de": "⚙️ Einstellungen", "fr": "⚙️ Paramètres"},
+    "menu_settings": {
+        "en": "⚙️ Settings",
+        "ru": "⚙️ Настройки",
+        "de": "⚙️ Einstellungen",
+        "fr": "⚙️ Paramètres",
+    },
     "menu_help": {"en": "ℹ️ Help", "ru": "ℹ️ Помощь", "de": "ℹ️ Hilfe", "fr": "ℹ️ Aide"},
     "menu_status": {"en": "📊 Status", "ru": "📊 Статус", "de": "📊 Status", "fr": "📊 Statut"},
     "menu_language": {"en": "🌐 Language", "ru": "🌐 Язык", "de": "🌐 Sprache", "fr": "🌐 Langue"},
@@ -35,7 +40,12 @@ MESSAGES = {
         "de": "✅ Einstellungen gespeichert!",
         "fr": "✅ Paramètres enregistrés !",
     },
-    "save_button": {"en": "💾 Save", "ru": "💾 Сохранить", "de": "💾 Speichern", "fr": "💾 Enregistrer"},
+    "save_button": {
+        "en": "💾 Save",
+        "ru": "💾 Сохранить",
+        "de": "💾 Speichern",
+        "fr": "💾 Enregistrer",
+    },
     "settings_title": {
         "en": "⚙️ Choose the categories you are interested in:",
         "ru": "⚙️ Выберите интересующие вас категории:",
@@ -72,7 +82,12 @@ MESSAGES = {
         "de": "Keine Abonnements",
         "fr": "Aucun abonnement",
     },
-    "bot_active": {"en": "Bot is active!", "ru": "Бот активен!", "de": "Bot ist aktiv!", "fr": "Le bot est actif !"},
+    "bot_active": {
+        "en": "Bot is active!",
+        "ru": "Бот активен!",
+        "de": "Bot ist aktiv!",
+        "fr": "Le bot est actif !",
+    },
     "button_error": {
         "en": "⚠️ An error occurred. Please try again later.",
         "ru": "⚠️ Произошла ошибка. Попробуйте позже.",
@@ -86,7 +101,12 @@ TRANSLATED_FROM_LABELS = {
     "de": "[AI] Übersetzt aus",
     "fr": "[AI] Traduit de",
 }
-READ_MORE_LABELS = {"en": "Read more", "ru": "Подробнее", "de": "Mehr lesen", "fr": "En savoir plus"}
+READ_MORE_LABELS = {
+    "en": "Read more",
+    "ru": "Подробнее",
+    "de": "Mehr lesen",
+    "fr": "En savoir plus",
+}
 SOURCE_LABELS = {"en": "Source", "ru": "Источник", "de": "Quelle", "fr": "Source"}
 SELECT_CATEGORIES_LABELS = {
     "en": "Choose the categories you are interested in",

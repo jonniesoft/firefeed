@@ -1,11 +1,13 @@
-import os
 import hashlib
 import logging
-from urllib.parse import urlparse, urljoin
-from config import IMAGES_ROOT_DIR, IMAGE_FILE_EXTENSIONS
 from datetime import datetime
+from pathlib import Path
+from urllib.parse import urljoin, urlparse
+
 import aiohttp
 from bs4 import BeautifulSoup
+
+from config import IMAGE_FILE_EXTENSIONS, IMAGES_ROOT_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -25,17 +27,21 @@ class ImageProcessor:
         :return: путь к сохраненному файлу или None
         """
         if not url or not rss_item_id:
-            logger.debug(f"[DEBUG] Пропущено сохранение изображения: нет URL ({url}) или rss_item_id ({rss_item_id})")
+            logger.debug(
+                f"[DEBUG] Пропущено сохранение изображения: нет URL ({url}) или rss_item_id ({rss_item_id})"
+            )
             return None
 
+        # Инициализируем full_save_directory до блока try для использования в exception handler
+        full_save_directory = Path(save_directory)
         try:
             # Используем текущее время для формирования пути
             created_at = datetime.now()
             date_path = created_at.strftime("%Y/%m/%d")
-            full_save_directory = os.path.join(save_directory, date_path)
+            full_save_directory = full_save_directory / date_path
 
             logger.debug(f"[DEBUG] Начинаем сохранять изображение из {url} в {full_save_directory}")
-            os.makedirs(full_save_directory, exist_ok=True)
+            full_save_directory.mkdir(parents=True, exist_ok=True)
 
             headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
@@ -46,56 +52,62 @@ class ImageProcessor:
             }
 
             # Используем aiohttp для асинхронного скачивания
-            timeout = aiohttp.ClientTimeout(total=10)
-            async with aiohttp.ClientSession(timeout=timeout) as session:
-                async with session.get(url, headers=headers) as response:
-                    response.raise_for_status()
+            timeout = aiohttp.ClientTimeout()
+            async with (
+                aiohttp.ClientSession(timeout=timeout) as session,
+                session.get(url, headers=headers) as response,
+            ):
+                response.raise_for_status()
 
-                    content_type = response.headers.get("Content-Type", "").lower()
-                    content_lower = content_type.lower()
-                    extension = ".jpg"
+                content_type = response.headers.get("Content-Type", "").lower()
+                content_lower = content_type.lower()
+                extension = ".jpg"
 
-                    # Проверяем content_type
-                    for ext in IMAGE_FILE_EXTENSIONS:
-                        if ext[1:] in content_lower:
-                            extension = ext
-                            break
-                    else:
-                        # Проверяем URL
-                        parsed_url = urlparse(url)
-                        path = parsed_url.path
-                        if path.lower().endswith(tuple(IMAGE_FILE_EXTENSIONS)):
-                            extension = os.path.splitext(path)[1].lower()
+                # Проверяем content_type
+                for ext in IMAGE_FILE_EXTENSIONS:
+                    if ext[1:] in content_lower:
+                        extension = ext
+                        break
+                else:
+                    # Проверяем URL
+                    parsed_url = urlparse(url)
+                    path = parsed_url.path
+                    if path.lower().endswith(tuple(IMAGE_FILE_EXTENSIONS)):
+                        extension = Path(path).suffix.lower()
 
-                    safe_rss_item_id = "".join(c for c in str(rss_item_id) if c.isalnum() or c in ("-", "_")).rstrip()
-                    if not safe_rss_item_id:
-                        safe_rss_item_id = hashlib.md5(url.encode()).hexdigest()
+                safe_rss_item_id = "".join(
+                    c for c in str(rss_item_id) if c.isalnum() or c in ("-", "_")
+                ).rstrip()
+                if not safe_rss_item_id:
+                    safe_rss_item_id = hashlib.md5(url.encode()).hexdigest()
 
-                    filename = f"{safe_rss_item_id}{extension}"
-                    file_path = os.path.join(full_save_directory, filename)
+                filename = f"{safe_rss_item_id}{extension}"
+                file_path = full_save_directory / filename
 
-                    # Проверяем, существует ли файл уже
-                    if os.path.exists(file_path):
-                        logger.info(f"[LOG] Изображение уже существует на сервере: {file_path}")
-                        return file_path
+                # Проверяем, существует ли файл уже
+                if file_path.exists():
+                    logger.info(f"[LOG] Изображение уже существует на сервере: {file_path}")
+                    return str(file_path)
 
-                    # Читаем контент асинхронно
-                    content = await response.read()
+                # Читаем контент асинхронно
+                content = await response.read()
 
-                    # Сохраняем файл асинхронно
-                    with open(file_path, "wb") as f:
-                        f.write(content)
+                # Сохраняем файл асинхронно
+                with file_path.open("wb") as f:
+                    f.write(content)
 
             logger.info(f"[LOG] Изображение успешно сохранено: {file_path}")
-            return file_path
+            return str(file_path)
 
         except OSError as e:
             logger.warning(
-                f"[WARN] Ошибка файловой системы при сохранении изображения {url} в {full_save_directory}: {e}"
+                f"[WARN] Ошибка файловой системы при сохранении изображения url={url} dir={full_save_directory}: {e}"
             )
             return None
         except Exception as e:
-            logger.warning(f"[WARN] Неожиданная ошибка при скачивании/сохранении изображения {url}: {e}")
+            logger.warning(
+                f"[WARN] Неожиданная ошибка при скачивании/сохранении изображения {url}: {e}"
+            )
             return None
 
     @staticmethod
@@ -119,11 +131,13 @@ class ImageProcessor:
                 "Upgrade-Insecure-Requests": "1",
             }
 
-            timeout = aiohttp.ClientTimeout(total=10)
-            async with aiohttp.ClientSession(timeout=timeout) as session:
-                async with session.get(url, headers=headers) as response:
-                    response.raise_for_status()
-                    html_content = await response.text()
+            timeout = aiohttp.ClientTimeout()
+            async with (
+                aiohttp.ClientSession(timeout=timeout) as session,
+                session.get(url, headers=headers) as response,
+            ):
+                response.raise_for_status()
+                html_content = await response.text()
 
             soup = BeautifulSoup(html_content, "html.parser")
 
@@ -141,13 +155,16 @@ class ImageProcessor:
             image_tags = soup.find_all("img")
             for img in image_tags:
                 src = img.get("src") or img.get("data-src")
-                if src and ("image" in src.lower() or "photo" in src.lower()):
-                    # Конвертируем относительные URL в абсолютные
-                    if src.startswith("//"):
-                        return "https:" + src
-                    elif src.startswith("/"):
-                        return urljoin(url, src)
-                    return src
+                if src:
+                    # Преобразуем в строку, если это AttributeValueList
+                    src = str(src) if not isinstance(src, str) else src
+                    if "image" in src.lower() or "photo" in src.lower():
+                        # Конвертируем относительные URL в абсолютные
+                        if src.startswith("//"):
+                            return "https:" + src
+                        elif src.startswith("/"):
+                            return urljoin(url, src)
+                        return src
 
             return None
         except Exception as e:

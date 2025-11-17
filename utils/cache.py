@@ -1,6 +1,7 @@
 import logging
+from typing import Any
+
 import spacy
-from typing import Optional, Dict, Any
 
 logger = logging.getLogger(__name__)
 
@@ -10,10 +11,10 @@ class SpacyModelCache:
 
     def __init__(self, max_cache_size: int = 3):
         self.max_cache_size = max_cache_size
-        self.models: Dict[str, Any] = {}
+        self.models: dict[str, Any] = {}
         self.usage_order: list = []  # LRU: последний использованный в конце
 
-    def get_model(self, lang_code: str) -> Optional[Any]:
+    def get_model(self, lang_code: str) -> Any | None:
         """
         Получает spaCy модель для языка с LRU-кэшированием
 
@@ -40,7 +41,9 @@ class SpacyModelCache:
 
         model_name = spacy_model_map.get(lang_code)
         if not model_name:
-            logger.warning(f"[CACHE] Языковая модель для '{lang_code}' не найдена, используем 'en_core_web_sm'")
+            logger.warning(
+                f"[CACHE] Языковая модель для '{lang_code}' не найдена, используем 'en_core_web_sm'"
+            )
             model_name = "en_core_web_sm"
 
         try:
@@ -54,7 +57,9 @@ class SpacyModelCache:
                 # Удаляем наименее недавно использованную модель
                 oldest_lang = self.usage_order.pop(0)
                 del self.models[oldest_lang]
-                logger.info(f"[CACHE] Очищена spacy модель для языка '{oldest_lang}' (превышен лимит кэша)")
+                logger.info(
+                    f"[CACHE] Очищена spacy модель для языка '{oldest_lang}' (превышен лимит кэша)"
+                )
 
             logger.info(f"[CACHE] Загружена spacy модель для языка '{lang_code}': {model_name}")
             return nlp

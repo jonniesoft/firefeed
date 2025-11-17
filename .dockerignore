@@ -1,7 +1,6 @@
 # Исключаем ненужные файлы для сборки образа
 .git
 .gitignore
-README.md
 .env
 __pycache__
 *.pyc
@@ -10,7 +9,9 @@ __pycache__
 .Python
 env
 venv
+# Исключаем локальные виртуальные окружения - UV создаст свое окружение в контейнере
 .venv
+__pypackages__/
 pip-log.txt
 pip-delete-this-directory.txt
 .tox
@@ -21,7 +22,6 @@ nosetests.xml
 coverage.xml
 *.cover
 *.log
-.git
 .mypy_cache
 .pytest_cache
 .hypothesis
@@ -29,7 +29,50 @@ coverage.xml
 data/
 # Исключаем тесты, если не нужны в продакшене
 test_*.py
+tests/
 # Исключаем скрипты запуска, если используем CMD в Dockerfile
 run_*.sh
 # Исключаем chrome-extension, если не нужна в контейнере
 chrome-extension/
+
+# Исключаем docker-compose файл
+docker-compose.yml
+
+# Исключаем документацию в формате Markdown
+*.md
+# IDE и агенты
+.vscode/
+.idea/
+.trae/
+.claude/
+.windsurf/
+.roo/
+.cursor/
+.kiro/
+.qoder/
+.augment/
+.clinerules/
+.kilocode/
+
+# Дополнительные кеши и временные файлы
+.ruff_cache/
+.ipynb_checkpoints/
+.nox/
+.DS_Store
+.python-version
+.env.*
+.envrc
+
+# Сборочные артефакты и метаданные пакетов
+build/
+dist/
+downloads/
+.eggs/
+*.egg-info/
+pip-wheel-metadata/
+wheels/
+share/python-wheels/
+
+# Логи и покрытия
+logs/
+cover/

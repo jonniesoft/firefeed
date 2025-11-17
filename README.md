@@ -1,15 +1,15 @@
 # FireFeed - AI-powered RSS aggregator and parser
 
-[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-3.13-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.116.1-green.svg)](https://fastapi.tiangolo.com/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-12+-blue.svg)](https://www.postgresql.org/)
-[![Docker](https://img.shields.io/badge/Docker-Supported-blue.svg)](https://www.docker.com/)
+[![Podman](https://img.shields.io/badge/Podman-Supported-blue.svg)](https://podman.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Tests](https://img.shields.io/badge/Tests-Passing-green.svg)](https://github.com/yuremweiland/firefeed/actions)
 
 Современный новостной агрегатор с поддержкой искусственного интеллекта для автоматического сбора, обработки и распространения новостей на нескольких языках.
 
-**Официальный сайт**: https://firefeed.net
+**Официальный сайт**: https://firefeed.jonniesoft.com
 
 ## Содержание
 
@@ -21,6 +21,7 @@
 - [Конфигурация](#конфигурация)
 - [API документация](#api-документация)
 - [Разработка](#разработка)
+  - [Workflow проверки качества кода](#workflow-проверки-качества-кода)
 - [Лицензия](#лицензия)
 
 ## Обзор проекта
@@ -65,7 +66,7 @@ FireFeed - это высокопроизводительная система д
 ## Технический стек
 
 ### Backend
-- Python 3.8+ с asyncio
+- Python 3.13 с asyncio
 - FastAPI для REST API
 - PostgreSQL с pgvector для семантического поиска
 - aiopg для асинхронных запросов к БД
@@ -82,7 +83,7 @@ FireFeed - это высокопроизводительная система д
 - Webhook-поддержка
 
 ### Инфраструктура
-- Docker-контейнеризация
+- Podman-контейнеризация
 - systemd для управления сервисами
 - nginx для проксирования
 
@@ -108,39 +109,154 @@ FireFeed - это высокопроизводительная система д
 
 ### Предварительные требования
 
-- Python 3.8 или выше
+- **Python 3.13** (строго рекомендуется)
+  - Python 3.14 пока не поддерживается из-за отсутствия wheels для `torch==2.8.0`
+  - Более старые версии не тестировались с текущими зависимостями
+- UV package manager (установка: `curl -LsSf https://astral.sh/uv/install.sh | sh`)
 - PostgreSQL 12+ с расширением pgvector
 - Токен Telegram Bot API
+
+**Важные замечания по зависимостям:**
+- В проекте используется `psycopg2-binary==2.9.10` вместо `psycopg2==2.9.10`
+  - **Причина:** `psycopg2` требует компиляции из исходников и наличия PostgreSQL development headers
+  - `psycopg2-binary` предоставляет готовые скомпилированные wheels для всех платформ
+  - Для production окружений рекомендуется `psycopg2-binary` для упрощения развертывания
+  - Для локальной разработки `psycopg2-binary` работает идентично `psycopg2`
 
 ### Установка зависимостей
 
 ```bash
-pip install -r requirements.txt
+# Синхронизация зависимостей с pyproject.toml и uv.lock
+uv sync
 ```
+
+**Примечание**: Проект использует `pyproject.toml` и `uv.lock` для управления зависимостями. Все зависимости зафиксированы в `uv.lock` с точными версиями и хешами для воспроизводимых сборок.
 
 ### Базовый запуск
 
 ```bash
-# Создание виртуального окружения
-python -m venv venv
-source venv/bin/activate  # для Windows: venv\Scripts\activate
+# Запуск приложений через предоставленные скрипты
+# Скрипты автоматически используют UV с зафиксированными зависимостями
 
 # Запуск Telegram бота
-python bot.py
+./run_bot.sh
+
+# Запуск API
+./run_api.sh
+
+# Запуск RSS парсера
+./run_parser.sh
 ```
 
 ### Запуск через скрипты
 
 ```bash
-# Дать права на выполнение
+# Дать права на выполнение (если не установлены)
 chmod +x ./run_bot.sh
 chmod +x ./run_api.sh
+chmod +x ./run_parser.sh
+chmod +x ./scripts/start-database.sh
+
+# Запуск БД (PostgreSQL + Redis)
+./scripts/start-database.sh
 
 # Запуск бота
 ./run_bot.sh
 
 # Запуск API
 ./run_api.sh
+
+# Запуск RSS парсера
+./run_parser.sh
+```
+
+**Примечание**: Скрипты `run_*.sh` используют `uv run --no-sync --frozen` для production-ready запуска:
+- `--no-sync`: Пропускает проверку синхронизации (окружение синхронизируется при деплое)
+- `--frozen`: Гарантирует, что `uv.lock` не будет изменён во время выполнения
+- `cd /root/firefeed`: Автоматически переходит в каталог проекта для корректной работы UV
+
+**Примечание**: Скрипт `./scripts/start-database.sh` автоматически настраивает Podman и запускает только необходимые для разработки сервисы (БД и Redis).
+
+### Запуск через Podman
+
+Проект поддерживает контейнеризацию и запуск через Podman с использованием multi-stage сборки.
+
+**Требования:**
+- Podman 4+ (рекомендуется 5+)
+
+**Сборка образа:**
+
+```bash
+# Соберите образ (из Dockerfile)
+podman build -t firefeed:latest -f Dockerfile .
+```
+
+**Примечание**: Dockerfile содержит расширения синтаксиса Dockerfile 1.7 (например, `RUN --mount=type=cache`). В большинстве окружений Podman образ собирается корректно; если ваша версия Podman/Buildah не поддерживает эти расширения и сборка падает, попробуйте:
+- выполнить сборку без кэша: `podman build --no-cache -t firefeed:latest -f Dockerfile .`
+- или временно собрать образ в Docker и запускать в Podman
+
+**Запуск контейнера:**
+
+```bash
+# Запуск API
+podman run -d -p 8000:8000 --env-file .env --name firefeed-api firefeed:latest
+
+# Запуск бота (переопределение CMD)
+podman run -d --env-file .env --name firefeed-bot firefeed:latest python bot.py
+
+# Запуск RSS парсера
+podman run -d --env-file .env --name firefeed-parser firefeed:latest python rss_parser.py
+```
+
+### Запуск через podman-compose
+
+В репозитории используется файл `docker-compose.yml`, совместимый с `podman-compose`.
+
+#### ⚙️ Настройка Podman для коротких имен образов
+
+Podman требует полные доменные имена для образов или настроенный `registries.conf`. Для вашего удобства:
+
+1. **Локальный файл конфигурации**: `.config/containers/registries.conf`
+   - Автоматически копируется в `~/.config/containers/registries.conf` при первом запуске
+   - Позволяет использовать короткие имена образов (например, `redis:7-alpine`)
+   - Указывает Docker Hub как основной registry для поиска образов
+
+2. **Автоматический запуск БД**: скрипт `./scripts/start-database.sh`
+   - Создает и настраивает registries.conf
+   - Запускает только PostgreSQL и Redis
+   - Ждет готовности БД перед завершением
+   - Автоматически получает параметры из `.env`
+
+#### 🚀 Запуск базы данных
+
+**Быстрый способ (рекомендуется):**
+
+```bash
+# Запустить только БД и Redis
+./scripts/start-database.sh
+
+# Проверить статус
+podman-compose ps
+```
+
+**Полный запуск всех сервисов:**
+
+```bash
+# Поднять все сервисы в фоне
+podman-compose up -d
+
+# Проверить состояние
+podman-compose ps
+
+# Остановить и удалить
+podman-compose down
+```
+
+**Остановка только БД:**
+
+```bash
+# Остановить PostgreSQL и Redis
+podman-compose stop db redis
 ```
 
 ## Конфигурация
@@ -159,6 +275,29 @@ SMTP_USERNAME=your_smtp_username
 SMTP_PASSWORD=your_smtp_password
 ```
 
+### Конфигурация контейнеров
+
+Для корректной работы Podman с короткими именами образов в проекте создан файл `.config/containers/registries.conf`:
+
+```ini
+[registries.search]
+registries = ['docker.io']
+
+[registries.insecure]
+registries = []
+
+[registries.block]
+registries = []
+```
+
+**Что это делает:**
+- Указывает Podman искать образы по коротким именам в Docker Hub (`docker.io`)
+- Позволяет использовать `redis:7-alpine` вместо `docker.io/library/redis:7-alpine`
+- Автоматически копируется в `~/.config/containers/registries.conf` скриптом `./scripts/start-database.sh`
+
+**Почему это нужно:**
+По умолчанию Podman блокирует короткие имена образов из соображений безопасности (предотвращение атак типа "image hijacking"). Этот файл конфигурации явно разрешает использование Docker Hub как доверенного registry.
+
 ### Systemd сервисы
 
 Для продакшн-окружения рекомендуется использовать systemd сервисы.
@@ -174,9 +313,9 @@ After=network.target
 Type=simple
 User=firefeed
 Group=firefeed
-WorkingDirectory=/var/www/firefeed/data/integrations/telegram
+WorkingDirectory=/root/firefeed
 
-ExecStart=/var/www/firefeed/data/integrations/telegram/run_bot.sh
+ExecStart=/root/firefeed/run_bot.sh
 
 Restart=on-failure
 RestartSec=10
@@ -204,8 +343,8 @@ Type=simple
 User=firefeed
 Group=firefeed
 
-WorkingDirectory=/var/www/firefeed/data/integrations/telegram
-ExecStart=/var/www/firefeed/data/integrations/telegram/run_api.sh
+WorkingDirectory=/root/firefeed
+ExecStart=/root/firefeed/run_api.sh
 
 Restart=always
 RestartSec=5
@@ -280,33 +419,74 @@ git clone https://gitverse.ru/yuryweiland/firefeed.git
 cd firefeed
 
 # Установка зависимостей
-pip install -r requirements.txt
+uv sync
 ```
+
+### Работа с UV
+
+UV - это современный быстрый менеджер пакетов Python от Astral, который значительно ускоряет установку зависимостей и обеспечивает детерминированные сборки.
+
+**Основные команды UV:**
+
+```bash
+# Синхронизация зависимостей с pyproject.toml и uv.lock
+uv sync
+
+# Добавление нового пакета
+uv add <package>
+
+# Обновление lockfile
+uv lock
+
+# Обновление зависимостей до последних версий
+uv lock --upgrade
+
+# Запуск скриптов в управляемом UV окружении
+uv run --frozen python script.py
+
+# Запуск приложений через скрипты (рекомендуется)
+./run_bot.sh
+./run_api.sh
+./run_parser.sh
+
+# Проверка качества кода
+uv run ruff check
+uv run pytest
+```
+
+**Преимущества UV:**
+
+- **Быстрая установка зависимостей**: особенно важно для ML-библиотек (torch, transformers, sentence-transformers)
+- **Детерминированные сборки**: через `uv.lock` обеспечивается воспроизводимость окружения
+- **Автоматическое управление виртуальными окружениями**: не нужно вручную активировать venv
+- **Production-ready**: флаг `--frozen` гарантирует неизменность lockfile во время выполнения
+
+**Примечание**: Проект использует `pyproject.toml` и `uv.lock` для управления зависимостями. Все зависимости зафиксированы с точными версиями и хешами.
 
 ### Запуск тестов
 
 Все тесты
 
 ```bash
-pytest tests/
+uv run pytest tests/
 ```
 
 Конкретный модуль
 
 ```bash
-pytest tests/test_models.py
+uv run pytest tests/test_models.py
 ```
 
 С остановкой на первой ошибке
 
 ```bash
-pytest tests/ -x
+uv run pytest tests/ -x
 ```
 
 С кратким выводом
 
 ```bash
-pytest tests/ --tb=short
+uv run pytest tests/ --tb=short
 ```
 
 ### Структура проекта
@@ -315,14 +495,73 @@ pytest tests/ --tb=short
 firefeed/
 ├── api/                 # FastAPI приложение
 ├── tests/                 # Unit-тесты
+├── scripts/              # Скрипты автоматизации
+├── doc/                  # Полная документация
 ├── bot.py              # Telegram бот
 ├── rss_parser.py       # RSS парсер
 ├── firefeed_translator.py    # Переводчик
 ├── firefeed_dublicate_detector.py  # Детектор дубликатов
 ├── user_manager.py     # Менеджер пользователей
-├── requirements.txt    # Зависимости
+├── pyproject.toml      # Конфигурация проекта и зависимости
+├── uv.lock            # Зафиксированные версии зависимостей
+├── run_bot.sh         # Скрипт запуска Telegram бота
+├── run_api.sh         # Скрипт запуска API
+├── run_parser.sh      # Скрипт запуска RSS парсера
 └── config/            # Конфигурации
 ```
+
+### Workflow проверки качества кода
+
+Проект использует современные инструменты качества кода от Meta для автоматизации рефакторинга и поддержания высокого стандарта кода.
+
+#### Быстрый старт - полная проверка:
+
+```bash
+# Все проверки качества одним скриптом
+bash scripts/run_quality_check.sh
+```
+
+#### Пошаговая проверка:
+
+```bash
+# 1. Сортировка импортов
+uv run usort .
+
+# 2. Проверка типов
+uv run pyrefly check
+
+# 3. Проверка стиля кода
+uv run ruff check .
+
+# 4. Запуск тестов
+uv run pytest
+```
+
+#### Автоматические исправления:
+
+```bash
+# Применить все безопасные codemods
+python scripts/apply_codemods.py
+
+# Исправить стиль кода
+uv run ruff check --fix .
+
+# Трансформации libcst
+python scripts/libcst_transformations.py проблемный_файл.py
+```
+
+#### Инструменты качества:
+
+| Инструмент | Версия | Назначение |
+|------------|--------|------------|
+| usort | 1.1.0 | Сортировка импортов |
+| pyrefly | 0.41.2 | Проверка типов |
+| libcst | 1.8.6 | Трансформации кода |
+| codemod | 1.0.0 | Автоматические рефакторинги |
+
+**📖 Полная документация**: См. папку [`doc/`](doc/) для подробных руководств:
+- [`doc/META_TOOLS_INTEGRATION_GUIDE.md`](doc/META_TOOLS_INTEGRATION_GUIDE.md) - Полное руководство
+- [`doc/META_TOOLS_QUICK_REFERENCE.md`](doc/META_TOOLS_QUICK_REFERENCE.md) - Краткий справочник
 
 ## Лицензия
 

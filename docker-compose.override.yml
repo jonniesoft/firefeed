@@ -1,0 +1,82 @@
+version: '3.8'
+
+# -----------------------------------------------------------------------------
+# Override configuration for LOCAL DEVELOPMENT
+# -----------------------------------------------------------------------------
+# This file is automatically loaded by docker-compose
+# Use for local development with hot-reload and debug features
+
+services:
+  # Override API service for development
+  firefeed-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      # Enable debug mode
+      - LOG_LEVEL=DEBUG
+      # Enable auto-reload for development
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
+    ports:
+      - "8000:8000"
+      - "5678:5678"  # Debug port for remote debugging
+    volumes:
+      - ./:/app
+      - ./data:/var/www/firefeed/data/www/firefeed.net/data/images
+    command: >
+      sh -c "uv run uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload --log-level debug"
+
+  # Override bot service for development
+  firefeed-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - LOG_LEVEL=DEBUG
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./:/app
+      - ./data:/var/www/firefeed/data/www/firefeed.net/data/images
+    command: >
+      sh -c "uv run python bot.py"
+
+  # Override parser service for development
+  firefeed-parser:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - LOG_LEVEL=DEBUG
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./:/app
+      - ./data:/var/www/firefeed/data/www/firefeed.net/data/images
+    # Parser not started by default in development
+    # Uncomment to enable:
+    # command: >
+    #   sh -c "uv run python rss_parser.py"
+
+  # Development tools - pgAdmin for PostgreSQL
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: firefeed-pgadmin
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@firefeed.local
+      - PGADMIN_DEFAULT_PASSWORD=admin
+      - PGADMIN_CONFIG_SERVER_MODE=False
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - db
+    restart: unless-stopped
+    networks:
+      - firefeed-network
+
+volumes:
+  pgadmin_data:
+    driver: local

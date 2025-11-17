@@ -1,23 +1,50 @@
 # bot.py
 import asyncio
 import logging
-import os
 import re
 import sys
+from contextlib import suppress
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from pathlib import Path
+from typing import Any
 
 import aiohttp
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
-from telegram.error import NetworkError, BadRequest, RetryAfter
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters
+from telegram import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    KeyboardButton,
+    Message,
+    ReplyKeyboardMarkup,
+    Update,
+)
+from telegram.error import BadRequest, NetworkError, RetryAfter
+from telegram.ext import (
+    Application,
+    CallbackQueryHandler,
+    CommandHandler,
+    ContextTypes,
+    filters,
+    MessageHandler,
+)
 from tenacity import retry, stop_after_attempt, wait_exponential
-from utils.text import TextProcessor
 
-from config import WEBHOOK_CONFIG, BOT_TOKEN, CHANNEL_IDS, CHANNEL_CATEGORIES, get_shared_db_pool
-from firefeed_translations import get_message, LANG_NAMES, TRANSLATED_FROM_LABELS, READ_MORE_LABELS, SOURCE_LABELS
+from config import (
+    BOT_TOKEN,
+    CHANNEL_CATEGORIES,
+    CHANNEL_IDS,
+    get_shared_db_pool,
+    WEBHOOK_CONFIG,
+)
+from firefeed_translations import (
+    get_message,
+    LANG_NAMES,
+    READ_MORE_LABELS,
+    SOURCE_LABELS,
+    TRANSLATED_FROM_LABELS,
+)
 from logging_config import setup_logging
 from user_manager import UserManager
+from utils.text import TextProcessor
 
 # Настройка логирования
 setup_logging()
@@ -41,80 +68,136 @@ http_session = None  # Глобальная сессия для HTTP-запро�
 class PreparedRSSItem:
     """Структура для хранения подготовленного RSS-элемента."""
 
-    original_data: Dict[str, Any]
-    translations: Dict[str, Dict[str, str]]
-    image_filename: Optional[str]
+    original_data: dict[str, Any]
+    translations: dict[str, dict[str, str]]
+    image_filename: str | None
+
+
+# --- Type Safety Helpers для Telegram объектов ---
+
+
+def get_user_id_from_update(update: Update) -> int | None:
+    """Безопасно извлечь user_id из Update (message или callback_query).
+
+    Args:
+        update: Telegram Update object
+
+    Returns:
+        user_id или None если не удалось извлечь
+    """
+    if update.message and update.message.from_user:
+        return update.message.from_user.id
+    if update.callback_query and update.callback_query.from_user:
+        return update.callback_query.from_user.id
+    return None
+
+
+def get_message_from_update(update: Update) -> Message | None:
+    """Безопасно получить Message из Update.
+
+    Args:
+        update: Telegram Update object
+
+    Returns:
+        Message объект или None
+    """
+    if update.message:
+        return update.message
+    if update.callback_query and update.callback_query.message:
+        # callback_query.message может быть MaybeInaccessibleMessage
+        # проверяем что это именно Message
+        msg = update.callback_query.message
+        if isinstance(msg, Message):
+            return msg
+    return None
+
+
+def ensure_user_manager():
+    """Убедиться что user_manager инициализирован.
+
+    Returns:
+        user_manager instance
+
+    Raises:
+        RuntimeError: если user_manager не инициализирован
+    """
+    if user_manager is None:
+        raise RuntimeError("user_manager not initialized")
+    return user_manager
 
 
 # --- Функции для работы с БД ---
-async def mark_translation_as_published(translation_id: int, channel_id: int, message_id: int = None):
+async def mark_translation_as_published(
+    translation_id: int, channel_id: int, message_id: int | None = None
+):
     """Помечает перевод как опубликованный в Telegram-канале."""
     try:
         # Получаем общий пул подключений
         db_pool = await get_shared_db_pool()
-        async with db_pool.acquire() as connection:
-            async with connection.cursor() as cursor:
-                query = """
-                    INSERT INTO rss_items_telegram_published
-                    (translation_id, channel_id, message_id, published_at)
-                    VALUES (%s, %s, %s, NOW())
-                    ON CONFLICT (translation_id, channel_id)
-                    DO UPDATE SET
-                        message_id = EXCLUDED.message_id,
-                        published_at = NOW()
-                """
-                await cursor.execute(query, (translation_id, channel_id, message_id))
-                logger.info(f"Перевод {translation_id} помечен как опубликованный в канале {channel_id}")
-                return True
+        async with db_pool.acquire() as connection, connection.cursor() as cursor:
+            query = """
+                INSERT INTO rss_items_telegram_published
+                (translation_id, channel_id, message_id, published_at)
+                VALUES (%s, %s, %s, NOW())
+                ON CONFLICT (translation_id, channel_id)
+                DO UPDATE SET
+                    message_id = EXCLUDED.message_id,
+                    published_at = NOW()
+            """
+            await cursor.execute(query, (translation_id, channel_id, message_id))
+            logger.info(
+                f"Перевод {translation_id} помечен как опубликованный в канале {channel_id}"
+            )
+            return True
     except Exception as e:
         logger.error(f"Ошибка при пометке перевода {translation_id} как опубликованного: {e}")
         return False
 
 
-async def mark_original_as_published(news_id: str, channel_id: int, message_id: int = None):
+async def mark_original_as_published(news_id: str, channel_id: int, message_id: int | None = None):
     """Помечает оригинальную новость как опубликованную в Telegram-канале."""
     try:
         # Получаем общий пул подключений
         db_pool = await get_shared_db_pool()
-        async with db_pool.acquire() as connection:
-            async with connection.cursor() as cursor:
-                query = """
-                    INSERT INTO rss_items_telegram_published_originals
-                    (news_id, channel_id, message_id, created_at)
-                    VALUES (%s, %s, %s, NOW())
-                    ON CONFLICT (news_id, channel_id)
-                    DO UPDATE SET
-                        message_id = EXCLUDED.message_id,
-                        created_at = NOW()
-                """
-                await cursor.execute(query, (news_id, channel_id, message_id))
-                logger.info(f"Оригинальная новость {news_id} помечена как опубликованная в канале {channel_id}")
-                return True
+        async with db_pool.acquire() as connection, connection.cursor() as cursor:
+            query = """
+                INSERT INTO rss_items_telegram_published_originals
+                (news_id, channel_id, message_id, created_at)
+                VALUES (%s, %s, %s, NOW())
+                ON CONFLICT (news_id, channel_id)
+                DO UPDATE SET
+                    message_id = EXCLUDED.message_id,
+                    created_at = NOW()
+            """
+            await cursor.execute(query, (news_id, channel_id, message_id))
+            logger.info(
+                f"Оригинальная новость {news_id} помечена как опубликованная в канале {channel_id}"
+            )
+            return True
     except Exception as e:
         logger.error(f"Ошибка при пометке оригинальной новости {news_id} как опубликованной: {e}")
         return False
 
 
-async def get_translation_id(news_id: str, language: str) -> int:
+async def get_translation_id(news_id: str, language: str) -> int | None:
     """Получает ID перевода из таблицы news_translations."""
     try:
         db_pool = await get_shared_db_pool()
-        async with db_pool.acquire() as connection:
-            async with connection.cursor() as cursor:
-                query = """
+        async with db_pool.acquire() as connection, connection.cursor() as cursor:
+            query = """
                     SELECT id FROM news_translations
                     WHERE news_id = %s AND language = %s
                 """
-                await cursor.execute(query, (news_id, language))
-                result = await cursor.fetchone()
-                return result[0] if result else None
+            await cursor.execute(query, (news_id, language))
+            result = await cursor.fetchone()
+            return result[0] if result else None
     except Exception as e:
         logger.error(f"Ошибка при получении ID перевода для {news_id} на {language}: {e}")
         return None
 
 
 # --- Функции для работы с API ---
-async def api_get(endpoint: str, params: dict = None) -> dict:
+async def api_get(endpoint: str, params: dict | None = None) -> dict:
     """Выполняет GET-запрос к API."""
     global http_session
     if http_session is None:
@@ -133,7 +216,7 @@ async def api_get(endpoint: str, params: dict = None) -> dict:
         else:
             processed_params = params
 
-        timeout = aiohttp.ClientTimeout(total=10, connect=5)  # Таймаут 10 секунд для API запросов
+        timeout = aiohttp.ClientTimeout()  # Таймаут 10 секунд для API запросов
         async with http_session.get(url, params=processed_params, timeout=timeout) as response:
             if response.status == 200:
                 return await response.json()
@@ -143,7 +226,7 @@ async def api_get(endpoint: str, params: dict = None) -> dict:
                 error_text = await response.text()
                 logger.error(f"Error response body: {error_text}")
                 return {}
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.error(f"Timeout error calling {endpoint}")
         return {}
     except Exception as e:
@@ -151,7 +234,7 @@ async def api_get(endpoint: str, params: dict = None) -> dict:
         return {}
 
 
-async def get_rss_items_list(display_language: str = None, **filters) -> dict:
+async def get_rss_items_list(display_language: str | None = None, **filters) -> dict:
     """Получает список RSS-элементов."""
     params = {}
     if display_language is not None:
@@ -189,8 +272,14 @@ def get_main_menu_keyboard(lang="en"):
     """Создает клавиатуру главного меню."""
     return ReplyKeyboardMarkup(
         [
-            [KeyboardButton(get_message("menu_settings", lang)), KeyboardButton(get_message("menu_help", lang))],
-            [KeyboardButton(get_message("menu_status", lang)), KeyboardButton(get_message("menu_language", lang))],
+            [
+                KeyboardButton(get_message("menu_settings", lang)),
+                KeyboardButton(get_message("menu_help", lang)),
+            ],
+            [
+                KeyboardButton(get_message("menu_status", lang)),
+                KeyboardButton(get_message("menu_language", lang)),
+            ],
         ],
         resize_keyboard=True,
         input_field_placeholder=get_message("menu_placeholder", lang),
@@ -199,9 +288,9 @@ def get_main_menu_keyboard(lang="en"):
 
 async def set_current_user_language(user_id: int, lang: str):
     """Устанавливает язык пользователя в БД и в памяти."""
-    global user_manager
     try:
-        await user_manager.set_user_language(user_id, lang)
+        um = ensure_user_manager()
+        await um.set_user_language(user_id, lang)
         USER_LANGUAGES[user_id] = lang
     except Exception as e:
         logger.error(f"Ошибка установки языка для {user_id}: {e}")
@@ -212,7 +301,8 @@ async def get_current_user_language(user_id: int) -> str:
     if user_id in USER_LANGUAGES:
         return USER_LANGUAGES[user_id]
     try:
-        lang = await user_manager.get_user_language(user_id)
+        um = ensure_user_manager()
+        lang = await um.get_user_language(user_id)
         if lang:
             USER_LANGUAGES[user_id] = lang
         return lang or "en"
@@ -222,62 +312,115 @@ async def get_current_user_language(user_id: int) -> str:
 
 
 # --- Обработчики команд ---
-async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def start_command(update: Update, _context: ContextTypes.DEFAULT_TYPE):
     """Обработчик команды /start."""
     user = update.effective_user
+    if user is None:
+        return
     user_id = user.id
     lang = await get_current_user_language(user_id)
     welcome_text = get_message("welcome", lang, user_name=user.first_name)
-    await update.message.reply_text(welcome_text, reply_markup=get_main_menu_keyboard(lang))
+    message = get_message_from_update(update)
+    if message:
+        await message.reply_text(welcome_text, reply_markup=get_main_menu_keyboard(lang))
     USER_CURRENT_MENUS[user_id] = "main"
 
 
 async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик команды /settings."""
     global user_manager
-    user_id = update.effective_user.id
+    user = update.effective_user
+    if user is None:
+        return
+    user_id = user.id
     try:
         lang = await get_current_user_language(user_id)
         logger.info(f"Loading settings for user {user_id}")
-        settings = await user_manager.get_user_settings(user_id)
+        um = ensure_user_manager()
+        settings = await um.get_user_settings(user_id)
         logger.info(f"Loaded settings for user {user_id}: {settings}")
-        current_subs = settings["subscriptions"] if isinstance(settings["subscriptions"], list) else []
+        if settings is None:
+            message = get_message_from_update(update)
+            if message:
+                await message.reply_text(get_message("settings_error", lang))
+            return
+        current_subs = (
+            settings["subscriptions"] if isinstance(settings["subscriptions"], list) else []
+        )
         USER_STATES[user_id] = {"current_subs": current_subs, "language": settings["language"]}
-        await _show_settings_menu(context.bot, update.effective_chat.id, user_id)
+        chat = update.effective_chat
+        if chat is None:
+            return
+        await _show_settings_menu(context.bot, chat.id, user_id)
         USER_CURRENT_MENUS[user_id] = "settings"
     except Exception as e:
         logger.error(f"Ошибка команды /settings для {user_id}: {e}")
         lang = await get_current_user_language(user_id)
-        await update.message.reply_text(get_message("settings_error", lang))
+        message = get_message_from_update(update)
+        if message:
+            await message.reply_text(get_message("settings_error", lang))
 
 
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def help_command(update: Update, _context: ContextTypes.DEFAULT_TYPE):
     """Обработчик команды /help."""
-    user_id = update.effective_user.id
+    user = update.effective_user
+    if user is None:
+        return
+    user_id = user.id
     lang = await get_current_user_language(user_id)
     help_text = get_message("help_text", lang)
-    await update.message.reply_text(help_text, parse_mode="HTML", reply_markup=get_main_menu_keyboard(lang))
+    message = get_message_from_update(update)
+    if message:
+        await message.reply_text(
+            help_text, parse_mode="HTML", reply_markup=get_main_menu_keyboard(lang)
+        )
     USER_CURRENT_MENUS[user_id] = "main"
 
 
-async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def status_command(update: Update, _context: ContextTypes.DEFAULT_TYPE):
     """Обработчик команды /status."""
-    global user_manager
-    user_id = update.effective_user.id
+    um = ensure_user_manager()
+    user = update.effective_user
+    if user is None:
+        return
+    user_id = user.id
     lang = await get_current_user_language(user_id)
-    settings = await user_manager.get_user_settings(user_id)
+
+    settings = await um.get_user_settings(user_id)
+    if settings is None:
+        message = get_message_from_update(update)
+        if message:
+            await message.reply_text(
+                get_message("settings_not_found", lang),
+                parse_mode="HTML",
+                reply_markup=get_main_menu_keyboard(lang),
+            )
+        return
+
     categories = settings["subscriptions"]
     categories_text = ", ".join(categories) if categories else get_message("no_subscriptions", lang)
     status_text = get_message(
-        "status_text", lang, language=LANG_NAMES.get(settings["language"], "English"), categories=categories_text
+        "status_text",
+        lang,
+        language=LANG_NAMES.get(settings["language"], "English"),
+        categories=categories_text,
     )
-    await update.message.reply_text(status_text, parse_mode="HTML", reply_markup=get_main_menu_keyboard(lang))
+
+    message = get_message_from_update(update)
+    if message:
+        await message.reply_text(
+            status_text, parse_mode="HTML", reply_markup=get_main_menu_keyboard(lang)
+        )
+
     USER_CURRENT_MENUS[user_id] = "main"
 
 
-async def change_language_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def change_language_command(update: Update, _context: ContextTypes.DEFAULT_TYPE):
     """Обработчик команды смены языка."""
-    user_id = update.effective_user.id
+    user = update.effective_user
+    if user is None:
+        return
+    user_id = user.id
     lang = await get_current_user_language(user_id)
     keyboard = [
         [InlineKeyboardButton("🇬🇧 English", callback_data="lang_en")],
@@ -285,18 +428,31 @@ async def change_language_command(update: Update, context: ContextTypes.DEFAULT_
         [InlineKeyboardButton("🇩🇪 Deutsch", callback_data="lang_de")],
         [InlineKeyboardButton("🇫🇷 Français", callback_data="lang_fr")],
     ]
-    await update.message.reply_text(get_message("language_select", lang), reply_markup=InlineKeyboardMarkup(keyboard))
+    message = get_message_from_update(update)
+    if message:
+        await message.reply_text(
+            get_message("language_select", lang), reply_markup=InlineKeyboardMarkup(keyboard)
+        )
     USER_CURRENT_MENUS[user_id] = "language"
 
 
 async def link_telegram_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик команды /link для привязки Telegram аккаунта."""
-    user_id = update.effective_user.id
+    um = ensure_user_manager()
+    user = update.effective_user
+    if user is None:
+        return
+    user_id = user.id
     lang = await get_current_user_language(user_id)
 
+    message = get_message_from_update(update)
+    if not message:
+        return
+
     if not context.args:
-        await update.message.reply_text(
-            "Использование: /link <код_привязки>\n\n" "Получите код привязки в личном кабинете на сайте.",
+        await message.reply_text(
+            "Использование: /link <код_привязки>\n\n"
+            "Получите код привязки в личном кабинете на сайте.",
             reply_markup=get_main_menu_keyboard(lang),
         )
         USER_CURRENT_MENUS[user_id] = "main"
@@ -305,16 +461,16 @@ async def link_telegram_command(update: Update, context: ContextTypes.DEFAULT_TY
     link_code = context.args[0].strip()
 
     # Проверяем код через UserManager
-    success = await user_manager.confirm_telegram_link(user_id, link_code)
+    success = await um.confirm_telegram_link(user_id, link_code)
 
     if success:
-        await update.message.reply_text(
+        await message.reply_text(
             "✅ Ваш Telegram аккаунт успешно привязан к аккаунту на сайте!\n\n"
             "Теперь вы можете управлять настройками через сайт или бота.",
             reply_markup=get_main_menu_keyboard(lang),
         )
     else:
-        await update.message.reply_text(
+        await message.reply_text(
             "❌ Код привязки недействителен или истек.\n\n"
             "Пожалуйста, сгенерируйте новый код в личном кабинете на сайте.",
             reply_markup=get_main_menu_keyboard(lang),
@@ -339,10 +495,18 @@ async def _show_settings_menu(bot, chat_id: int, user_id: int):
             is_selected = category_name in current_subs
             text = f"{'✅ ' if is_selected else '🔲 '}{category_name.capitalize()}"
             keyboard.append([InlineKeyboardButton(text, callback_data=f"toggle_{category_name}")])
-        keyboard.append([InlineKeyboardButton(get_message("save_button", current_lang), callback_data="save_settings")])
+        keyboard.append(
+            [
+                InlineKeyboardButton(
+                    get_message("save_button", current_lang), callback_data="save_settings"
+                )
+            ]
+        )
         reply_markup = InlineKeyboardMarkup(keyboard)
         await bot.send_message(
-            chat_id=chat_id, text=get_message("settings_title", current_lang), reply_markup=reply_markup
+            chat_id=chat_id,
+            text=get_message("settings_title", current_lang),
+            reply_markup=reply_markup,
         )
     except Exception as e:
         logger.error(f"Ошибка в _show_settings_menu для {user_id}: {e}")
@@ -357,71 +521,87 @@ async def _show_settings_menu_from_callback(bot, chat_id: int, user_id: int):
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик callback кнопок."""
     global user_manager
+    um = ensure_user_manager()
     query = update.callback_query
+    if query is None:
+        return
     await query.answer()
-    user_id = query.from_user.id
+    user = query.from_user
+    if user is None:
+        return
+    user_id = user.id
     try:
         if user_id not in USER_STATES:
-            subs = await user_manager.get_user_subscriptions(user_id)
+            subs = await um.get_user_subscriptions(user_id)
             current_subs = subs if isinstance(subs, list) else []
-            USER_STATES[user_id] = {"current_subs": current_subs, "language": await get_current_user_language(user_id)}
+            USER_STATES[user_id] = {
+                "current_subs": current_subs,
+                "language": await get_current_user_language(user_id),
+            }
         state = USER_STATES[user_id]
         current_lang = state["language"]
-        if query.data.startswith("toggle_"):
-            category = query.data.split("_", 1)[1]
+        data = query.data
+        if data is None:
+            return
+        if data.startswith("toggle_"):
+            category = data.split("_", 1)[1]
             current_subs = state["current_subs"]
             if category in current_subs:
                 current_subs.remove(category)
             else:
                 current_subs.append(category)
             state["current_subs"] = current_subs
-            try:
-                await query.message.delete()
-            except Exception:
-                pass
-            await _show_settings_menu_from_callback(context.bot, query.message.chat_id, user_id)
-        elif query.data == "save_settings":
+            with suppress(Exception):
+                msg = query.message
+                if msg is not None and isinstance(msg, Message):
+                    await msg.delete()
+            msg = query.message
+            if msg is not None and isinstance(msg, Message):
+                await _show_settings_menu_from_callback(context.bot, msg.chat_id, user_id)
+        elif data == "save_settings":
             # Save category names as strings
             logger.info(
                 f"Saving settings for user {user_id}: subscriptions={state['current_subs']}, language={state['language']}"
             )
-            result = await user_manager.save_user_settings(user_id, state["current_subs"], state["language"])
+            result = await um.save_user_settings(user_id, state["current_subs"], state["language"])
             logger.info(f"Save result for user {user_id}: {result}")
             USER_STATES.pop(user_id, None)
-            try:
-                await query.message.delete()
-            except Exception:
-                pass
+            with suppress(Exception):
+                msg = query.message
+                if msg is not None and isinstance(msg, Message):
+                    await msg.delete()
             user = await context.bot.get_chat(user_id)
             welcome_text = (
                 get_message("settings_saved", current_lang)
-                + "\n"
+                + "\n\n"
                 + get_message("welcome", current_lang, user_name=user.first_name)
             )
             await context.bot.send_message(
-                chat_id=user_id, text=welcome_text, reply_markup=get_main_menu_keyboard(current_lang)
+                chat_id=user_id,
+                text=welcome_text,
+                reply_markup=get_main_menu_keyboard(current_lang),
             )
             USER_CURRENT_MENUS[user_id] = "main"
-        elif query.data.startswith("lang_"):
-            lang = query.data.split("_", 1)[1]
+        elif data.startswith("lang_"):
+            lang = data.split("_", 1)[1]
             await set_current_user_language(user_id, lang)
             if user_id in USER_STATES:
                 USER_STATES[user_id]["language"] = lang
-            try:
-                await query.message.delete()
-            except Exception:
-                pass
+            with suppress(Exception):
+                msg = query.message
+                if msg is not None and isinstance(msg, Message):
+                    await msg.delete()
             user = await context.bot.get_chat(user_id)
             welcome_text = (
                 get_message("language_changed", lang, language=LANG_NAMES.get(lang, "English"))
-                + "\n"
+                + "\n\n"
                 + get_message("welcome", lang, user_name=user.first_name)
             )
             await context.bot.send_message(
                 chat_id=user_id, text=welcome_text, reply_markup=get_main_menu_keyboard(lang)
             )
             USER_CURRENT_MENUS[user_id] = "main"
-        elif query.data == "change_lang":
+        elif data == "change_lang":
             current_lang = await get_current_user_language(user_id)
             keyboard = [
                 [InlineKeyboardButton("🇬🇧 English", callback_data="lang_en")],
@@ -429,9 +609,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 [InlineKeyboardButton("🇩🇪 Deutsch", callback_data="lang_de")],
                 [InlineKeyboardButton("🇫🇷 Français", callback_data="lang_fr")],
             ]
-            await query.message.edit_text(
-                text=get_message("language_select", current_lang), reply_markup=InlineKeyboardMarkup(keyboard)
-            )
+            msg = query.message
+            if msg is not None and isinstance(msg, Message):
+                await msg.edit_text(
+                    text=get_message("language_select", current_lang),
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                )
             USER_CURRENT_MENUS[user_id] = "language"
     except Exception as e:
         logger.error(f"Ошибка обработки кнопки для {user_id}: {e}")
@@ -446,9 +629,17 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_menu_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик выбора пункта меню."""
-    user_id = update.effective_user.id
+    user = update.effective_user
+    if user is None:
+        return
+    user_id = user.id
     lang = await get_current_user_language(user_id)
-    text = update.message.text
+    message = get_message_from_update(update)
+    if not message:
+        return
+    text = message.text
+    if text is None:
+        return
     menu_actions = {
         get_message("menu_settings", lang): settings_command,
         get_message("menu_help", lang): help_command,
@@ -459,44 +650,37 @@ async def handle_menu_selection(update: Update, context: ContextTypes.DEFAULT_TY
     if action:
         await action(update, context)
         return
-    all_languages = ["en", "ru", "de", "fr"]
-    for check_lang in all_languages:
-        if text in [get_message(f"menu_{m}", check_lang) for m in ["settings", "help", "status", "language"]]:
-            await set_current_user_language(user_id, check_lang)
-            new_menu_actions = {
-                get_message("menu_settings", check_lang): settings_command,
-                get_message("menu_help", check_lang): help_command,
-                get_message("menu_status", check_lang): status_command,
-                get_message("menu_language", check_lang): change_language_command,
-            }
-            new_action = new_menu_actions.get(text)
-            if new_action:
-                await new_action(update, context)
-            return
-    logger.info(f"Неизвестный выбор меню для {user_id}: {text}")
 
 
-async def debug(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def debug(update: Update, _context: ContextTypes.DEFAULT_TYPE):
     """Обработчик отладочных сообщений."""
-    user_id = update.effective_user.id
+    user = update.effective_user
+    if user is None:
+        return
+    user_id = user.id
     lang = await get_current_user_language(user_id)
-    await update.message.reply_text(get_message("bot_active", lang), reply_markup=get_main_menu_keyboard(lang))
+    message = get_message_from_update(update)
+    if message:
+        await message.reply_text(
+            get_message("bot_active", lang), reply_markup=get_main_menu_keyboard(lang)
+        )
     USER_CURRENT_MENUS[user_id] = "main"
-
-
 
 
 @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=2, max=30))
 async def send_personal_rss_items(bot, prepared_rss_item: PreparedRSSItem):
     """Отправляет персональные RSS-элементы подписчикам."""
     global user_manager
+    um = ensure_user_manager()
     news_id = prepared_rss_item.original_data.get("id")
-    logger.info(f"Отправка персонального RSS-элемента: {prepared_rss_item.original_data['title'][:50]}...")
+    logger.info(
+        f"Отправка персонального RSS-элемента: {prepared_rss_item.original_data['title'][:50]}..."
+    )
     category = prepared_rss_item.original_data.get("category")
     if not category:
         logger.warning(f"RSS-элемент {news_id} не имеет категории")
         return
-    subscribers = await user_manager.get_subscribers_for_category(category)
+    subscribers = await um.get_subscribers_for_category(category)
     if not subscribers:
         logger.info(f"Нет подписчиков для категории {category}")
         return
@@ -517,7 +701,7 @@ async def send_personal_rss_items(bot, prepared_rss_item: PreparedRSSItem):
                 title_to_send = prepared_rss_item.original_data["title"]
                 content_to_send = prepared_rss_item.original_data.get("content", "")
             # Иначе ищем перевод на язык пользователя
-            elif user_lang in translations_cache and translations_cache[user_lang]:
+            elif translations_cache.get(user_lang):
                 translation_data = translations_cache[user_lang]
                 title_to_send = translation_data.get("title", "")
                 content_to_send = translation_data.get("content", "")
@@ -532,12 +716,10 @@ async def send_personal_rss_items(bot, prepared_rss_item: PreparedRSSItem):
 
             lang_note = ""
             if user_lang != original_rss_item_lang:
-                lang_note = (
-                    f"\n🌐 {TRANSLATED_FROM_LABELS.get(user_lang, 'Translated from')} {original_rss_item_lang.upper()}\n"
-                )
+                lang_note = f"\n🌐 {TRANSLATED_FROM_LABELS.get(user_lang, 'Translated from')} {original_rss_item_lang.upper()}\n"
             content_text = (
                 f"🔥 <b>{title_to_send}</b>\n"
-                f"\n\n{content_to_send}\n"
+                f"\n{content_to_send}\n"
                 f"\nFROM: {prepared_rss_item.original_data.get('source', 'Unknown Source')}\n"
                 f"CATEGORY: {category}\n{lang_note}\n"
                 f"⚡ <a href='{prepared_rss_item.original_data.get('link', '#')}'>{READ_MORE_LABELS.get(user_lang, 'Read more')}</a>"
@@ -564,23 +746,49 @@ async def send_personal_rss_items(bot, prepared_rss_item: PreparedRSSItem):
                     else:
                         caption = caption[:1021] + "..."
                 try:
-                    await bot.send_photo(chat_id=user_id, photo=image_filename, caption=caption, parse_mode="HTML")
+                    await bot.send_photo(
+                        chat_id=user_id, photo=image_filename, caption=caption, parse_mode="HTML"
+                    )
                 except RetryAfter as e:
-                    logger.warning(f"Flood control для пользователя {user_id}, ждем {e.retry_after} секунд")
-                    await asyncio.sleep(e.retry_after + 1)
-                    await bot.send_photo(chat_id=user_id, photo=image_filename, caption=caption, parse_mode="HTML")
+                    logger.warning(
+                        f"Flood control для пользователя {user_id}, ждем {e.retry_after} секунд"
+                    )
+                    from datetime import timedelta
+
+                    if isinstance(e.retry_after, timedelta):
+                        sleep_time = e.retry_after.total_seconds() + 1
+                    else:
+                        sleep_time = float(e.retry_after) + 1
+                    await asyncio.sleep(sleep_time)
+                    await bot.send_photo(
+                        chat_id=user_id, photo=image_filename, caption=caption, parse_mode="HTML"
+                    )
                 except Exception as e:
                     logger.error(f"Ошибка отправки фото пользователю {user_id}: {e}")
             else:
                 try:
                     await bot.send_message(
-                        chat_id=user_id, text=content_text, parse_mode="HTML", disable_web_page_preview=True
+                        chat_id=user_id,
+                        text=content_text,
+                        parse_mode="HTML",
+                        disable_web_page_preview=True,
                     )
                 except RetryAfter as e:
-                    logger.warning(f"Flood control для пользователя {user_id}, ждем {e.retry_after} секунд")
-                    await asyncio.sleep(e.retry_after + 1)
+                    logger.warning(
+                        f"Flood control для пользователя {user_id}, ждем {e.retry_after} секунд"
+                    )
+                    from datetime import timedelta
+
+                    if isinstance(e.retry_after, timedelta):
+                        sleep_time = e.retry_after.total_seconds() + 1
+                    else:
+                        sleep_time = float(e.retry_after) + 1  # type: ignore
+                    await asyncio.sleep(sleep_time)
                     await bot.send_message(
-                        chat_id=user_id, text=content_text, parse_mode="HTML", disable_web_page_preview=True
+                        chat_id=user_id,
+                        text=content_text,
+                        parse_mode="HTML",
+                        disable_web_page_preview=True,
                     )
                 except Exception as e:
                     logger.error(f"Ошибка отправки сообщения пользователю {user_id}: {e}")
@@ -588,7 +796,9 @@ async def send_personal_rss_items(bot, prepared_rss_item: PreparedRSSItem):
             if i < len(subscribers) - 1:
                 await asyncio.sleep(0.5)
         except Exception as e:
-            logger.error(f"Ошибка отправки персонального RSS-элемента пользователю {user.get('id', 'Unknown ID')}: {e}")
+            logger.error(
+                f"Ошибка отправки персонального RSS-элемента пользователю {user.get('id', 'Unknown ID')}: {e}"
+            )
 
 
 @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=2, max=30))
@@ -615,18 +825,24 @@ async def post_to_channel(bot, prepared_rss_item: PreparedRSSItem):
                 content = TextProcessor.clean(original_content)
                 lang_note = ""
                 translation_id = None  # Для оригинального языка нет перевода
-            elif target_lang in translations_cache and translations_cache[target_lang]:
+            elif translations_cache.get(target_lang):
                 # Есть перевод
                 translation_data = translations_cache[target_lang]
                 title = TextProcessor.clean(translation_data.get("title", original_title))
                 content = TextProcessor.clean(translation_data.get("content", original_content))
-                lang_note = (
-                    f"\n{TRANSLATED_FROM_LABELS.get(target_lang, '[AI] Translated from')} {original_lang.upper()}\n"
-                )
+                lang_note = f"\n{TRANSLATED_FROM_LABELS.get(target_lang, '[AI] Translated from')} {original_lang.upper()}\n"
                 # Получаем ID перевода для отслеживания публикации
-                translation_id = await get_translation_id(news_id, target_lang)
+                if news_id is None:
+                    logger.warning("Не найден news_id для получения перевода")
+                    return
+                translation_id = await get_translation_id(str(news_id), target_lang)
+                if translation_id is None:
+                    logger.warning(f"Не найден ID перевода для {news_id} на {target_lang}")
+                    return
                 if not translation_id:
-                    logger.warning(f"Не найден ID перевода для {news_id} на {target_lang}, пропускаем публикацию")
+                    logger.warning(
+                        f"Не найден ID перевода для {news_id} на {target_lang}, пропускаем публикацию"
+                    )
                     continue
             else:
                 # Нет перевода, пропускаем
@@ -638,7 +854,9 @@ async def post_to_channel(bot, prepared_rss_item: PreparedRSSItem):
             if content and content.strip():
                 content_text += f"\n{content}\n"
             if source_url:
-                content_text += f"\n🔗 <a href=\"{source_url}\">{SOURCE_LABELS.get(target_lang, 'Source')}</a>\n"
+                content_text += (
+                    f'\n🔗 <a href="{source_url}">{SOURCE_LABELS.get(target_lang, "Source")}</a>\n'
+                )
             content_text += f"{lang_note}{hashtags}"
             image_filename = prepared_rss_item.image_filename
             logger.debug(f"post_to_channel image_filename = {image_filename}")
@@ -667,8 +885,16 @@ async def post_to_channel(bot, prepared_rss_item: PreparedRSSItem):
                     )
                     message_id = message.message_id
                 except RetryAfter as e:
-                    logger.warning(f"Flood control для канала {channel_id}, ждем {e.retry_after} секунд")
-                    await asyncio.sleep(e.retry_after + 1)
+                    logger.warning(
+                        f"Flood control для канала {channel_id}, ждем {e.retry_after} секунд"
+                    )
+                    from datetime import timedelta
+
+                    if isinstance(e.retry_after, timedelta):
+                        sleep_time = e.retry_after.total_seconds() + 1
+                    else:
+                        sleep_time = float(e.retry_after) + 1
+                    await asyncio.sleep(sleep_time)
                     message = await bot.send_photo(
                         chat_id=channel_id, photo=image_filename, caption=caption, parse_mode="HTML"
                     )
@@ -679,14 +905,28 @@ async def post_to_channel(bot, prepared_rss_item: PreparedRSSItem):
             else:
                 try:
                     message = await bot.send_message(
-                        chat_id=channel_id, text=content_text, parse_mode="HTML", disable_web_page_preview=True
+                        chat_id=channel_id,
+                        text=content_text,
+                        parse_mode="HTML",
+                        disable_web_page_preview=True,
                     )
                     message_id = message.message_id
                 except RetryAfter as e:
-                    logger.warning(f"Flood control для канала {channel_id}, ждем {e.retry_after} секунд")
-                    await asyncio.sleep(e.retry_after + 1)
+                    logger.warning(
+                        f"Flood control для канала {channel_id}, ждем {e.retry_after} секунд"
+                    )
+                    from datetime import timedelta
+
+                    if isinstance(e.retry_after, timedelta):
+                        sleep_time = e.retry_after.total_seconds() + 1
+                    else:
+                        sleep_time = float(e.retry_after) + 1
+                    await asyncio.sleep(sleep_time)
                     message = await bot.send_message(
-                        chat_id=channel_id, text=content_text, parse_mode="HTML", disable_web_page_preview=True
+                        chat_id=channel_id,
+                        text=content_text,
+                        parse_mode="HTML",
+                        disable_web_page_preview=True,
                     )
                     message_id = message.message_id
                 except Exception as e:
@@ -696,10 +936,13 @@ async def post_to_channel(bot, prepared_rss_item: PreparedRSSItem):
             # Помечаем публикацию в БД
             if translation_id:
                 # Это перевод
-                await mark_translation_as_published(translation_id, channel_id, message_id)
+                await mark_translation_as_published(translation_id, int(channel_id), message_id)
             else:
                 # Это оригинальная новость
-                await mark_original_as_published(news_id, channel_id, message_id)
+                if news_id is None:
+                    logger.warning("Не найден news_id, пропускаем публикацию")
+                    continue
+                await mark_original_as_published(str(news_id), int(channel_id), message_id)
 
             logger.info(f"Опубликовано в {channel_id}: {title[:50]}...")
             # Не выходим, продолжаем для других каналов, где есть переводы
@@ -756,10 +999,14 @@ async def process_rss_item(context, rss_item_from_api):
 
         tasks_to_await = []
         if rss_item_from_api.get("category") in CHANNEL_CATEGORIES:
-            logger.info(f"RSS-элемент категории '{rss_item_from_api.get('category')}' подходит для общего канала.")
+            logger.info(
+                f"RSS-элемент категории '{rss_item_from_api.get('category')}' подходит для общего канала."
+            )
             tasks_to_await.append(limited_post_to_channel())
         else:
-            logger.info(f"RSS-элемент категории '{rss_item_from_api.get('category')}' НЕ подходит для общего канала.")
+            logger.info(
+                f"RSS-элемент категории '{rss_item_from_api.get('category')}' НЕ подходит для общего канала."
+            )
 
         tasks_to_await.append(limited_send_personal_rss_items())
 
@@ -779,7 +1026,9 @@ async def monitor_rss_items_task(context: ContextTypes.DEFAULT_TYPE):
     logger.info("Запуск задачи мониторинга RSS-элементов")
     try:
         # Получаем необработанные RSS-элементы через API
-        rss_response = await get_rss_items_list(limit=20, telegram_published="false", include_all_translations="true")
+        rss_response = await get_rss_items_list(
+            limit=20, telegram_published="false", include_all_translations="true"
+        )
         if not isinstance(rss_response, dict):
             logger.error(f"Неверный формат ответа от API: {type(rss_response)}")
             return
@@ -791,7 +1040,9 @@ async def monitor_rss_items_task(context: ContextTypes.DEFAULT_TYPE):
             logger.info("Нет RSS-элементов для обработки.")
             return
 
-        processing_tasks = [process_rss_item(context, rss_item) for rss_item in unprocessed_rss_list]
+        processing_tasks = [
+            process_rss_item(context, rss_item) for rss_item in unprocessed_rss_list
+        ]
 
         logger.info(f"Запуск обработки {len(processing_tasks)} RSS-элементов...")
         try:
@@ -800,7 +1051,7 @@ async def monitor_rss_items_task(context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             logger.error(f"Ошибка при обработке партии RSS-элементов: {e}")
 
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.error("Таймаут получения RSS-элементов")
     except Exception as e:
         logger.error(f"Ошибка в задаче мониторинга: {e}")
@@ -811,8 +1062,8 @@ async def initialize_http_session():
     global http_session
     if http_session is None:
         # Добавляем повторные попытки и таймауты для более надежного соединения
-        connector = aiohttp.TCPConnector(limit=100, limit_per_host=30, keepalive_timeout=30, enable_cleanup_closed=True)
-        timeout = aiohttp.ClientTimeout(total=15, connect=5)
+        connector = aiohttp.TCPConnector(limit=100, limit_per_host=30, keepalive_timeout=30)
+        timeout = aiohttp.ClientTimeout()
         http_session = aiohttp.ClientSession(
             connector=connector, timeout=timeout, headers={"User-Agent": "TelegramBot/1.0"}
         )
@@ -831,7 +1082,7 @@ async def cleanup_http_session():
             logger.error(f"Ошибка при закрытии HTTP-сессии: {e}")
 
 
-async def post_stop(application: Application) -> None:
+async def post_stop(_application: Application) -> None:
     """Вызывается при остановке приложения."""
     logger.info("Остановка приложения и закрытие ресурсов...")
 
@@ -848,7 +1099,7 @@ async def post_stop(application: Application) -> None:
     logger.info("Все ресурсы освобождены")
 
 
-async def post_init(application: Application) -> None:
+async def post_init(_application: Application) -> None:
     """Вызывается после инициализации приложения."""
     global user_manager
     logger.info("Приложение инициализировано")
@@ -867,10 +1118,16 @@ async def post_init(application: Application) -> None:
 def main():
     logger.info("=== НАЧАЛО ЗАПУСКА БОТА ===")
     logger.info(f"Python version: {sys.version}")
-    logger.info(f"Current working directory: {os.getcwd()}")
+    logger.info(f"Current working directory: {Path.cwd()}")
     logger.info(f"Bot token configured: {'Yes' if BOT_TOKEN else 'No'}")
 
-    application = Application.builder().token(BOT_TOKEN).post_stop(post_stop).post_init(post_init).build()
+    if not BOT_TOKEN:
+        logger.error("BOT_TOKEN is not configured!")
+        return
+
+    application = (
+        Application.builder().token(BOT_TOKEN).post_stop(post_stop).post_init(post_init).build()
+    )
 
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("settings", settings_command))
@@ -884,12 +1141,35 @@ def main():
 
     job_queue = application.job_queue
     if job_queue:
-        job_queue.run_repeating(monitor_rss_items_task, interval=300, first=1, job_kwargs={"misfire_grace_time": 600})
+        job_queue.run_repeating(
+            monitor_rss_items_task, interval=300, first=1, job_kwargs={"misfire_grace_time": 600}
+        )
         logger.info("Зарегистрирована задача мониторинга RSS-элементов (каждые 5 минут)")
 
     logger.info("Бот запущен в режиме Webhook")
     try:
-        application.run_webhook(**WEBHOOK_CONFIG, close_loop=False)
+        # Prepare webhook kwargs with proper types, filtering out None values
+        webhook_listen = WEBHOOK_CONFIG.get("listen")
+        webhook_port = WEBHOOK_CONFIG.get("port")
+        webhook_url_path = WEBHOOK_CONFIG.get("url_path")
+        webhook_url = WEBHOOK_CONFIG.get("webhook_url")
+
+        # Pass parameters explicitly to avoid type inference issues
+        if webhook_url:
+            application.run_webhook(
+                listen=str(webhook_listen) if webhook_listen else "127.0.0.1",
+                port=int(webhook_port) if webhook_port else 5000,
+                url_path=str(webhook_url_path) if webhook_url_path else "webhook",
+                webhook_url=str(webhook_url),
+                close_loop=False,
+            )
+        else:
+            application.run_webhook(
+                listen=str(webhook_listen) if webhook_listen else "127.0.0.1",
+                port=int(webhook_port) if webhook_port else 5000,
+                url_path=str(webhook_url_path) if webhook_url_path else "webhook",
+                close_loop=False,
+            )
     except (KeyboardInterrupt, SystemExit):
         logger.info("Прервано пользователем или системой...")
     except Exception as e:
@@ -897,7 +1177,7 @@ def main():
         raise
 
 
-async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def error_handler(_update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик ошибок."""
     if isinstance(context.error, NetworkError):
         logger.error("Network error detected. Retrying...")

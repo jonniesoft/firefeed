@@ -1,4 +1,3 @@
-import pytest
 from utils.text import TextProcessor
 
 
@@ -55,7 +54,10 @@ class TestTextProcessor:
         assert TextProcessor.validate_length("Hi", min_length=5, max_length=10) is False
 
     def test_validate_length_too_long(self):
-        assert TextProcessor.validate_length("This is a very long text", min_length=1, max_length=10) is False
+        assert (
+            TextProcessor.validate_length("This is a very long text", min_length=1, max_length=10)
+            is False
+        )
 
     def test_remove_duplicates_no_duplicates(self):
         text = "Hello world test"
@@ -111,7 +113,7 @@ class TestTextProcessor:
     def test_is_gibberish_mixed_text(self):
         mixed = "Hello asdfghjkl world qwerty"
         # This might be borderline, but with current threshold should be False
-        result = TextProcessor.is_gibberish(mixed)
+        TextProcessor.is_gibberish(mixed)
         # The exact result depends on the ratio calculation
 
     def test_is_gibberish_empty(self):

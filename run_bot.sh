@@ -1,12 +1,10 @@
 #!/bin/bash
 
-# Убедимся, что pyenv загружен
-export PYENV_ROOT="$HOME/.pyenv"
-export PATH="$PYENV_ROOT/bin:$PATH"
-eval "$(pyenv init -)"
+# Переходим в каталог проекта для корректной работы UV
+cd /root/firefeed
 
-# Устанавливаем версию Python
-pyenv shell 3.13.6
-
-# Запускаем бота
-python /var/www/firefeed/data/integrations/telegram/bot.py
+# Запускаем Telegram бота через UV с зафиксированными зависимостями
+# UV использует .python-version (3.13) и uv.lock для детерминированного окружения
+# Флаг --no-sync пропускает проверку синхронизации (окружение уже синхронизировано при деплое)
+# Флаг --frozen гарантирует, что uv.lock не будет изменён
+uv run --no-sync --frozen python /var/www/firefeed/data/integrations/telegram/bot.py

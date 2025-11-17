@@ -1,24 +1,57 @@
+import asyncio
 import logging
 import os
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.middleware import setup_middleware
-from api.routers import auth as auth_router
-from api.routers import users as users_router
-from api.routers import categories as categories_router
-from api.routers import rss_feeds as rss_feeds_router
-from api.routers import telegram as telegram_router
-from api.routers import rss_items as rss_items_router
-from api.websocket import router as ws_router, check_for_new_rss_items
 from api import database
+from api.middleware import setup_middleware
+from api.routers import (
+    auth as auth_router,
+    categories as categories_router,
+    rss_feeds as rss_feeds_router,
+    rss_items as rss_items_router,
+    telegram as telegram_router,
+    users as users_router,
+)
+from api.websocket import check_for_new_rss_items, router as ws_router
 from logging_config import setup_logging
-import config
 
 setup_logging()
 logger = logging.getLogger(__name__)
 
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """Управление жизненным циклом приложения"""
+    # Startup
+    rss_task = asyncio.create_task(check_for_new_rss_items())
+    logger.info("[Startup] RSS items checking task started")
+
+    try:
+        yield
+    finally:
+        # Shutdown: cancel background task gracefully
+        if not rss_task.done():
+            logger.info("[Shutdown] Cancelling RSS checking task...")
+            rss_task.cancel()
+            try:
+                await rss_task
+            except asyncio.CancelledError:
+                logger.info("[Shutdown] RSS checking task cancelled successfully")
+
+        # Close database pool
+        try:
+            await database.close_db_pool()
+            logger.info("[Shutdown] Database pool closed")
+        except Exception as e:
+            logger.error(f"[Shutdown] Error closing DB pool: {e}")
+
+
 app = FastAPI(
+    lifespan=lifespan,
     title="FireFeed API",
     description="""
     # FireFeed News Aggregator API
@@ -114,19 +147,4 @@ app.include_router(rss_items_router.router)
 app.include_router(ws_router)
 
 
-@app.on_event("startup")
-async def startup_event():
-    # Start background rss items checking task
-    import asyncio
-
-    asyncio.create_task(check_for_new_rss_items())
-    logger.info("[Startup] RSS items checking task started")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    try:
-        await database.close_db_pool()
-        logger.info("[Shutdown] Database pool closed")
-    except Exception as e:
-        logger.error(f"[Shutdown] Error closing DB pool: {e}")
+# Lifecycle events moved to lifespan context manager above

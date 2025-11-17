@@ -1,33 +1,35 @@
+from datetime import datetime
+
 import pytest
 from pydantic import ValidationError
-from datetime import datetime
+
 from api.models import (
-    LanguageTranslation,
-    RSSItem,
     CategoryItem,
-    SourceItem,
-    LanguageItem,
-    PaginatedResponse,
-    HTTPError,
-    UserBase,
-    UserCreate,
-    UserLogin,
-    UserUpdate,
-    UserResponse,
-    Token,
-    TokenData,
-    PasswordResetRequest,
-    PasswordResetConfirm,
     EmailVerificationRequest,
+    HTTPError,
+    LanguageItem,
+    LanguageTranslation,
+    PaginatedResponse,
+    PasswordResetConfirm,
+    PasswordResetRequest,
+    RSSItem,
+    SourceItem,
     SuccessResponse,
-    UserRSSFeedBase,
-    UserRSSFeedCreate,
-    UserRSSFeedUpdate,
-    UserRSSFeedResponse,
-    UserCategoriesUpdate,
-    UserCategoriesResponse,
     TelegramLinkResponse,
     TelegramLinkStatusResponse,
+    Token,
+    TokenData,
+    UserBase,
+    UserCategoriesResponse,
+    UserCategoriesUpdate,
+    UserCreate,
+    UserLogin,
+    UserResponse,
+    UserRSSFeedBase,
+    UserRSSFeedCreate,
+    UserRSSFeedResponse,
+    UserRSSFeedUpdate,
+    UserUpdate,
 )
 
 
@@ -73,6 +75,7 @@ class TestRSSItem:
         )
         assert item.image_url == "http://example.com/image.jpg"
         assert item.category == "Tech"
+        assert item.translations is not None
         assert item.translations["es"].title == "Título de Prueba"
 
 
@@ -127,11 +130,11 @@ class TestUserBase:
             UserBase(email="invalid-email", language="en")
 
 
-class TestUserCreate:
+class TestUserCreateOld:
     def test_valid_user_create(self):
-        user = UserCreate(email="test@example.com", password="password123", language="en")
+        user = UserCreate(email="test@example.com", password="Password123!", language="en")
         assert user.email == "test@example.com"
-        assert user.password == "password123"
+        assert user.password == "Password123!"
 
     def test_password_too_short(self):
         with pytest.raises(ValidationError):
@@ -197,11 +200,11 @@ class TestPasswordResetRequest:
         assert request.email == "test@example.com"
 
 
-class TestPasswordResetConfirm:
+class TestPasswordResetConfirmOld:
     def test_valid_password_reset_confirm(self):
-        confirm = PasswordResetConfirm(token="abc123", new_password="newpassword123")
+        confirm = PasswordResetConfirm(token="abc123", new_password="Newpassword123!")
         assert confirm.token == "abc123"
-        assert confirm.new_password == "newpassword123"
+        assert confirm.new_password == "Newpassword123!"
 
     def test_password_too_short(self):
         with pytest.raises(ValidationError):
@@ -231,7 +234,9 @@ class TestSuccessResponse:
 
 class TestUserRSSFeedBase:
     def test_valid_user_rss_feed_base(self):
-        feed = UserRSSFeedBase(url="http://example.com/rss", name="Test Feed", category_id=1, language="en")
+        feed = UserRSSFeedBase(
+            url="http://example.com/rss", name="Test Feed", category_id=1, language="en"
+        )
         assert feed.url == "http://example.com/rss"
         assert feed.name == "Test Feed"
         assert feed.category_id == 1
@@ -293,7 +298,9 @@ class TestTelegramLinkResponse:
 
 class TestTelegramLinkStatusResponse:
     def test_valid_telegram_link_status_response(self):
-        response = TelegramLinkStatusResponse(is_linked=True, telegram_id=12345, linked_at="2023-01-01T00:00:00Z")
+        response = TelegramLinkStatusResponse(
+            is_linked=True, telegram_id=12345, linked_at="2023-01-01T00:00:00Z"
+        )
         assert response.is_linked is True
         assert response.telegram_id == 12345
         assert response.linked_at == "2023-01-01T00:00:00Z"

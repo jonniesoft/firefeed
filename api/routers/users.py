@@ -1,9 +1,10 @@
 import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 
-from api.middleware import limiter
 from api import database, models
 from api.deps import get_current_user
+from api.middleware import limiter
 
 logger = logging.getLogger(__name__)
 
@@ -13,8 +14,8 @@ router = APIRouter(
     responses={
         401: {"description": "Unauthorized - Authentication required"},
         429: {"description": "Too Many Requests - Rate limit exceeded"},
-        500: {"description": "Internal Server Error"}
-    }
+        500: {"description": "Internal Server Error"},
+    },
 )
 
 
@@ -30,17 +31,16 @@ router = APIRouter(
     **Rate limit:** 300 requests per minute
     """,
     responses={
-        200: {
-            "description": "Current user profile",
-            "model": models.UserResponse
-        },
+        200: {"description": "Current user profile", "model": models.UserResponse},
         401: {"description": "Unauthorized - Authentication required"},
         429: {"description": "Too Many Requests - Rate limit exceeded"},
-        500: {"description": "Internal Server Error"}
-    }
+        500: {"description": "Internal Server Error"},
+    },
 )
 @limiter.limit("300/minute")
-async def get_current_user_profile(request: Request, current_user: dict = Depends(get_current_user)):
+async def get_current_user_profile(
+    _request: Request, current_user: dict = Depends(get_current_user)
+):
     return models.UserResponse(**current_user)
 
 
@@ -60,21 +60,22 @@ async def get_current_user_profile(request: Request, current_user: dict = Depend
     **Rate limit:** 300 requests per minute
     """,
     responses={
-        200: {
-            "description": "User profile updated successfully",
-            "model": models.UserResponse
-        },
+        200: {"description": "User profile updated successfully", "model": models.UserResponse},
         400: {
             "description": "Bad Request - Invalid email format or email already taken",
-            "model": models.HTTPError
+            "model": models.HTTPError,
         },
         401: {"description": "Unauthorized - Authentication required"},
         429: {"description": "Too Many Requests - Rate limit exceeded"},
-        500: {"description": "Internal Server Error"}
-    }
+        500: {"description": "Internal Server Error"},
+    },
 )
 @limiter.limit("300/minute")
-async def update_current_user(request: Request, user_update: models.UserUpdate, current_user: dict = Depends(get_current_user)):
+async def update_current_user(
+    _request: Request,
+    user_update: models.UserUpdate,
+    current_user: dict = Depends(get_current_user),
+):
     # Validate input lengths
     if user_update.email and len(user_update.email) > 255:
         raise HTTPException(status_code=400, detail="Email too long (max 255 characters)")
@@ -118,11 +119,11 @@ async def update_current_user(request: Request, user_update: models.UserUpdate, 
         204: {"description": "User account successfully deactivated"},
         401: {"description": "Unauthorized - Authentication required"},
         429: {"description": "Too Many Requests - Rate limit exceeded"},
-        500: {"description": "Internal Server Error"}
-    }
+        500: {"description": "Internal Server Error"},
+    },
 )
 @limiter.limit("300/minute")
-async def delete_current_user(request: Request, current_user: dict = Depends(get_current_user)):
+async def delete_current_user(_request: Request, current_user: dict = Depends(get_current_user)):
     pool = await database.get_db_pool()
     if pool is None:
         raise HTTPException(status_code=500, detail="Database error")

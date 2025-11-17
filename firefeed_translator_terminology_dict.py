@@ -60,7 +60,12 @@ TERMINOLOGY_DICT = {
     "Wikipedia": {"en": "Wikipedia", "ru": "Wikipedia", "de": "Wikipedia", "fr": "Wikipedia"},
     "GitHub": {"en": "GitHub", "ru": "GitHub", "de": "GitHub", "fr": "GitHub"},
     "GitLab": {"en": "GitLab", "ru": "GitLab", "de": "GitLab", "fr": "GitLab"},
-    "Stack Overflow": {"en": "Stack Overflow", "ru": "Stack Overflow", "de": "Stack Overflow", "fr": "Stack Overflow"},
+    "Stack Overflow": {
+        "en": "Stack Overflow",
+        "ru": "Stack Overflow",
+        "de": "Stack Overflow",
+        "fr": "Stack Overflow",
+    },
     "Mozilla": {"en": "Mozilla", "ru": "Mozilla", "de": "Mozilla", "fr": "Mozilla"},
     "Firefox": {"en": "Firefox", "ru": "Firefox", "de": "Firefox", "fr": "Firefox"},
     "Chrome": {"en": "Chrome", "ru": "Chrome", "de": "Chrome", "fr": "Chrome"},
@@ -68,7 +73,12 @@ TERMINOLOGY_DICT = {
     "Edge": {"en": "Edge", "ru": "Edge", "de": "Edge", "fr": "Edge"},
     "Opera": {"en": "Opera", "ru": "Opera", "de": "Opera", "fr": "Opera"},
     "Brave": {"en": "Brave", "ru": "Brave", "de": "Brave", "fr": "Brave"},
-    "Tor Browser": {"en": "Tor Browser", "ru": "Tor Browser", "de": "Tor Browser", "fr": "Tor Browser"},
+    "Tor Browser": {
+        "en": "Tor Browser",
+        "ru": "Tor Browser",
+        "de": "Tor Browser",
+        "fr": "Tor Browser",
+    },
     # Криптовалюты
     "Bitcoin": {"en": "Bitcoin", "ru": "Bitcoin", "de": "Bitcoin", "fr": "Bitcoin"},
     "Ethereum": {"en": "Ethereum", "ru": "Ethereum", "de": "Ethereum", "fr": "Ethereum"},
@@ -121,7 +131,12 @@ TERMINOLOGY_DICT = {
         "fr": "Réseau de Neurones",
     },
     "Blockchain": {"en": "Blockchain", "ru": "Блокчейн", "de": "Blockchain", "fr": "Blockchain"},
-    "Cryptocurrency": {"en": "Cryptocurrency", "ru": "Криптовалюта", "de": "Kryptowährung", "fr": "Cryptomonnaie"},
+    "Cryptocurrency": {
+        "en": "Cryptocurrency",
+        "ru": "Криптовалюта",
+        "de": "Kryptowährung",
+        "fr": "Cryptomonnaie",
+    },
     "Big Data": {"en": "Big Data", "ru": "Большие данные", "de": "Big Data", "fr": "Big Data"},
     "Cloud Computing": {
         "en": "Cloud Computing",

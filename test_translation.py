@@ -1,5 +1,6 @@
 import asyncio
 import logging
+
 from firefeed_translator import FireFeedTranslator
 
 logger = logging.getLogger(__name__)
@@ -43,7 +44,9 @@ async def test_translations():
 
     logger.info("=== ТЕСТИРОВАНИЕ ДЛИННЫХ ТЕКСТОВ ===")
     for text, src, tgt in long_test_cases:
-        logger.info(f"Тестируем длинный текст ({len(text)} символов): '{text[:100]}...' {src} -> {tgt}")
+        logger.info(
+            f"Тестируем длинный текст ({len(text)} символов): '{text[:100]}...' {src} -> {tgt}"
+        )
         try:
             result = await translator.translate_async([text], src, tgt)
             logger.info(f"Результат: '{result[0][:200]}...'")
