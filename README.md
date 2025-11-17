@@ -112,7 +112,7 @@ FireFeed - это высокопроизводительная система д
 - **Python 3.13** (строго рекомендуется)
   - Python 3.14 пока не поддерживается из-за отсутствия wheels для `torch==2.8.0`
   - Более старые версии не тестировались с текущими зависимостями
-- UV package manager (установка, зафиксированная версия 0.9.8: `curl -LsSf https://astral.sh/uv/0.9.8/install.sh | sh`) — версия закреплена как `0.9.8` для совпадения с Dockerfile; при обновлении, обновляйте и Dockerfile, и README синхронно, чтобы избежать дрейфа версий.
+- UV package manager (установка: `curl -LsSf https://astral.sh/uv/install.sh | sh`)
 - PostgreSQL 12+ с расширением pgvector
 - Токен Telegram Bot API
 
@@ -126,30 +126,35 @@ FireFeed - это высокопроизводительная система д
 ### Установка зависимостей
 
 ```bash
-uv pip install -r requirements.txt
+# Синхронизация зависимостей с pyproject.toml и uv.lock
+uv sync
 ```
 
-**Примечание**: Миграция на `pyproject.toml` и `uv.lock` — Target: Q1 2026; trigger: после стабильного релиза 1.0 или стабилизации зависимостей в CI. До миграции используйте `requirements.txt`; устаревание: `requirements.txt` поддерживается до Q2 2026 или до завершения миграции. Прогресс: https://github.com/yuremweiland/firefeed/issues, https://github.com/yuremweiland/firefeed/projects.
+**Примечание**: Проект использует `pyproject.toml` и `uv.lock` для управления зависимостями. Все зависимости зафиксированы в `uv.lock` с точными версиями и хешами для воспроизводимых сборок.
 
 ### Базовый запуск
 
 ```bash
-# Создание виртуального окружения (UV управляет этим автоматически)
-uv venv
+# Запуск приложений через предоставленные скрипты
+# Скрипты автоматически используют UV с зафиксированными зависимостями
 
-# UV автоматически управляет виртуальным окружением
 # Запуск Telegram бота
-uv run python bot.py
-# или просто
-uv run bot.py
+./run_bot.sh
+
+# Запуск API
+./run_api.sh
+
+# Запуск RSS парсера
+./run_parser.sh
 ```
 
 ### Запуск через скрипты
 
 ```bash
-# Дать права на выполнение
+# Дать права на выполнение (если не установлены)
 chmod +x ./run_bot.sh
 chmod +x ./run_api.sh
+chmod +x ./run_parser.sh
 chmod +x ./scripts/start-database.sh
 
 # Запуск БД (PostgreSQL + Redis)
@@ -160,7 +165,15 @@ chmod +x ./scripts/start-database.sh
 
 # Запуск API
 ./run_api.sh
+
+# Запуск RSS парсера
+./run_parser.sh
 ```
+
+**Примечание**: Скрипты `run_*.sh` используют `uv run --no-sync --frozen` для production-ready запуска:
+- `--no-sync`: Пропускает проверку синхронизации (окружение синхронизируется при деплое)
+- `--frozen`: Гарантирует, что `uv.lock` не будет изменён во время выполнения
+- `cd /root/firefeed`: Автоматически переходит в каталог проекта для корректной работы UV
 
 **Примечание**: Скрипт `./scripts/start-database.sh` автоматически настраивает Podman и запускает только необходимые для разработки сервисы (БД и Redis).
 
@@ -300,9 +313,9 @@ After=network.target
 Type=simple
 User=firefeed
 Group=firefeed
-WorkingDirectory=/var/www/firefeed/data/integrations/telegram
+WorkingDirectory=/root/firefeed
 
-ExecStart=/var/www/firefeed/data/integrations/telegram/run_bot.sh
+ExecStart=/root/firefeed/run_bot.sh
 
 Restart=on-failure
 RestartSec=10
@@ -330,8 +343,8 @@ Type=simple
 User=firefeed
 Group=firefeed
 
-WorkingDirectory=/var/www/firefeed/data/integrations/telegram
-ExecStart=/var/www/firefeed/data/integrations/telegram/run_api.sh
+WorkingDirectory=/root/firefeed
+ExecStart=/root/firefeed/run_api.sh
 
 Restart=always
 RestartSec=5
@@ -406,10 +419,8 @@ git clone https://gitverse.ru/yuryweiland/firefeed.git
 cd firefeed
 
 # Установка зависимостей
-uv pip install -r requirements.txt
+uv sync
 ```
-
-**Примечание**: Миграция на `pyproject.toml` и `uv.lock` — Target: Q1 2026; trigger: после стабильного релиза 1.0 или стабилизации зависимостей в CI. До миграции используйте `requirements.txt`; устаревание: `requirements.txt` поддерживается до Q2 2026 или до завершения миграции. Прогресс: https://github.com/yuremweiland/firefeed/issues, https://github.com/yuremweiland/firefeed/projects.
 
 ### Работа с UV
 
@@ -418,16 +429,29 @@ UV - это современный быстрый менеджер пакето�
 **Основные команды UV:**
 
 ```bash
-# Установка зависимостей (текущий способ)
-uv pip install -r requirements.txt
+# Синхронизация зависимостей с pyproject.toml и uv.lock
+uv sync
 
-# После миграции на pyproject.toml:
-# uv sync                 # Установка зависимостей
-# uv add <package>        # Добавление нового пакета
-# uv lock                 # Обновление lockfile
+# Добавление нового пакета
+uv add <package>
 
-# Запуск скриптов в виртуальном окружении
-uv run python script.py
+# Обновление lockfile
+uv lock
+
+# Обновление зависимостей до последних версий
+uv lock --upgrade
+
+# Запуск скриптов в управляемом UV окружении
+uv run --frozen python script.py
+
+# Запуск приложений через скрипты (рекомендуется)
+./run_bot.sh
+./run_api.sh
+./run_parser.sh
+
+# Проверка качества кода
+uv run ruff check
+uv run pytest
 ```
 
 **Преимущества UV:**
@@ -435,8 +459,9 @@ uv run python script.py
 - **Быстрая установка зависимостей**: особенно важно для ML-библиотек (torch, transformers, sentence-transformers)
 - **Детерминированные сборки**: через `uv.lock` обеспечивается воспроизводимость окружения
 - **Автоматическое управление виртуальными окружениями**: не нужно вручную активировать venv
+- **Production-ready**: флаг `--frozen` гарантирует неизменность lockfile во время выполнения
 
-**Совместимость с pip**: В случаях, когда нужен fallback, можно продолжать использовать pip с `requirements.txt`.
+**Примечание**: Проект использует `pyproject.toml` и `uv.lock` для управления зависимостями. Все зависимости зафиксированы с точными версиями и хешами.
 
 ### Запуск тестов
 
@@ -477,7 +502,11 @@ firefeed/
 ├── firefeed_translator.py    # Переводчик
 ├── firefeed_dublicate_detector.py  # Детектор дубликатов
 ├── user_manager.py     # Менеджер пользователей
-├── requirements.txt    # Зависимости
+├── pyproject.toml      # Конфигурация проекта и зависимости
+├── uv.lock            # Зафиксированные версии зависимостей
+├── run_bot.sh         # Скрипт запуска Telegram бота
+├── run_api.sh         # Скрипт запуска API
+├── run_parser.sh      # Скрипт запуска RSS парсера
 └── config/            # Конфигурации
 ```
 
@@ -488,8 +517,8 @@ firefeed/
 #### Быстрый старт - полная проверка:
 
 ```bash
-# Все проверки одним скриптом
-./scripts/test_meta_tools.sh
+# Все проверки качества одним скриптом
+bash scripts/run_quality_check.sh
 ```
 
 #### Пошаговая проверка:
